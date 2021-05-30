@@ -1,14 +1,10 @@
-# coding: utf-8
-import re
 import json
 import logging
 import ntpath
 import tempfile
 import urllib.request
 from gettext import translation
-from typing import *
 from urllib.error import URLError, HTTPError, ContentTooShortError
-from urllib.parse import quote
 
 import requests
 from ehforwarderbot import Message, coordinator
@@ -704,21 +700,10 @@ def param_spliter(str_param):
     return param
 
 
-def download_file_from_qzone(cookie: str, csrf_token: str, uin, group_id, file_id, filename, file_size):
-    cookie_arr = param_spliter(cookie)
-    url = "http://qun.qzone.qq.com/cgi-bin/group_share_get_downurl?uin=" + str(uin) + "&pa=/104/" + \
-          str(file_id) + "&groupid=" + str(group_id) + "&bussinessid=0&charset=utf-8&g_tk=" + str(csrf_token) + "&r=888"
-    ret = requests.get(url, cookies=cookie_arr)
-    data = json.loads(ret.text.split("(")[1].split(")")[0])['data']
-    cookie += "; FTN5K=" + str(data['cookie'])
-    download_url = data['url']
-    download_url += "/" + quote(filename)
-    if file_size >= 50*1024*1024:  # File size is bigger than 50MiB
-        return _("File is too big to be downloaded")
+def download_file(download_url):
     file = tempfile.NamedTemporaryFile()
     try:
         opener = urllib.request.build_opener()
-        opener.addheaders.append(('Cookie', cookie))
         urllib.request.install_opener(opener)
         urllib.request.urlretrieve(download_url, file.name)
     except (URLError, HTTPError, ContentTooShortError) as e:
@@ -729,20 +714,6 @@ def download_file_from_qzone(cookie: str, csrf_token: str, uin, group_id, file_i
             raise EOFError('File downloaded is Empty')
         file.seek(0)
         return file
-    '''
-    try:
-        opener = urllib.request.build_opener()
-        opener.addheaders.append(('Cookie', cookie))
-        with opener.open(download_url) as response, tempfile.NamedTemporaryFile() as f:
-            shutil.copyfileobj(response, f)
-            if f.seek(0, 2) <= 0:
-                raise EOFError('File downloaded is Empty')
-            f.seek(0)
-            return f
-    except Exception as e:
-        logging.getLogger(__name__).warning("Error occurs when downloading files" + str(e))
-        return url
-    '''
 
 
 def download_user_avatar(uid: str):
@@ -777,22 +748,6 @@ def download_group_avatar(uid: str):
     return file
 
 
-def get_friend_group_via_qq_show(cookie: str, csrf_token: str) -> Dict[str, str]:
-    # This function won't check before execute, instead all the exceptions will be thrown
-    cookie_arr = param_spliter(cookie)
-    url = "https://show.qq.com/cgi-bin/qqshow_user_friendgroup?g_tk={csrf_token}&omode=4" \
-        .format(csrf_token=csrf_token)
-    ret = requests.get(url, cookies=cookie_arr)
-    data = json.loads(ret.text)
-    friend_group = {}
-    for i in range(len(data['data']['group'])):  # friend group
-        for j in range(len(data['data']['group'][i]['friend'])):
-            current_user = str(data['data']['group'][i]['friend'][j]['uin'])
-            current_group = data['data']['group'][i]['name']
-            friend_group[current_user] = current_group
-    return friend_group
-
-
 def download_voice(filename: str, api_root: str, access_token: str):
     file = tempfile.NamedTemporaryFile()
     url = '{url}/data/record/{file}'.format(url=api_root, file=filename)
@@ -809,22 +764,3 @@ def download_voice(filename: str, api_root: str, access_token: str):
         raise EOFError('File downloaded is Empty')
     file.seek(0)
     return file
-
-
-def get_stranger_info_via_qzone(uin: str):
-    pattern = re.compile(r"\((.*)\)")
-    resp = requests.get("https://users.qzone.qq.com/fcg-bin/cgi_get_portrait.fcg?uins={id}".format(id=uin))
-    # Assume that this API is always available
-    data = pattern.findall(resp.text)
-    if not data:
-        return ""
-    try:
-        data = json.loads(data[0])
-        ret = {
-            "uin": uin,
-            "nickname": data[uin][6],
-            "avatar_url": data[uin][0]
-        }
-        return ret
-    except:
-        return ""

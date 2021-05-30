@@ -8,15 +8,15 @@ import magic
 from ehforwarderbot import Message, MsgType, Chat
 from ehforwarderbot.message import LocationAttribute, LinkAttribute, Substitutions
 
-from . import CoolQ
+from . import GoCQHttp
 from .Utils import cq_get_image, download_voice
 
 
 class QQMsgProcessor:
-    inst: CoolQ
+    inst: GoCQHttp
     logger: logging.Logger = logging.getLogger(__name__)
 
-    def __init__(self, instance: CoolQ):
+    def __init__(self, instance: GoCQHttp):
         self.inst = instance
         self._ = instance._
         pass

@@ -6,11 +6,11 @@ import uuid
 from datetime import timedelta, datetime
 from gettext import translation
 from typing import Any, Dict, List, BinaryIO
-import cherrypy
-from cherrypy._cpserver import Server
 
+import cherrypy
 import cqhttp
 from PIL import Image
+from cherrypy._cpserver import Server
 from cherrypy.process.wspbus import states
 from cqhttp import CQHttp
 from efb_qq_slave import BaseClient, QQMessengerChannel
@@ -33,7 +33,7 @@ from .Utils import qq_emoji_list, async_send_messages_to_master, process_quote_t
     upload_image_sogou, download_file
 
 
-class CoolQ(BaseClient):
+class GoCQHttp(BaseClient):
     client_name: str = "CoolQ Client"
     client_id: str = "CoolQ"
     client_config: Dict[str, Any]

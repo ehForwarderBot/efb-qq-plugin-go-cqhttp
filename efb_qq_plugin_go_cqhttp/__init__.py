@@ -1,1 +1,1 @@
-from . import CoolQ
+from . import GoCQHttp

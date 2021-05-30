@@ -1,11 +1,10 @@
 import contextlib
 import logging
 
+from efb_qq_slave import QQMessengerChannel
 from ehforwarderbot import Chat
 from ehforwarderbot.chat import GroupChat, PrivateChat, SystemChat
 from ehforwarderbot.types import ChatID
-
-from efb_qq_slave import QQMessengerChannel
 
 
 class ChatManager:

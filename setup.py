@@ -41,6 +41,6 @@ setup(
         'requests', 'python-magic', 'Pillow', 'cqhttp>=1.3.0', 'cherrypy>=18.5.0'
     ],
     entry_points={
-        'ehforwarderbot.qq.plugin': 'GoCQHttp = efb_qq_plugin_go_cqhttp:CoolQ'
+        'ehforwarderbot.qq.plugin': 'GoCQHttp = efb_qq_plugin_go_cqhttp:GoCQHttp'
     }
 )

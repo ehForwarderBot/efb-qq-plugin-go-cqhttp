@@ -25,12 +25,10 @@ from pkg_resources import resource_filename
 from requests import RequestException
 
 from .ChatMgr import ChatManager
-from .Exceptions import CoolQDisconnectedException, CoolQAPIFailureException, CoolQOfflineException, \
-    CoolQUnknownException
+from .Exceptions import CoolQDisconnectedException, CoolQAPIFailureException, CoolQOfflineException
 from .MsgDecorator import QQMsgProcessor
 from .Utils import qq_emoji_list, async_send_messages_to_master, process_quote_text, coolq_text_encode, \
-    upload_image_smms, download_user_avatar, download_group_avatar, upload_image_vim_cn, upload_image_mi, \
-    upload_image_sogou, download_file
+    download_user_avatar, download_group_avatar, download_file
 
 
 class GoCQHttp(BaseClient):
@@ -475,13 +473,12 @@ class GoCQHttp(BaseClient):
 
         self.logger.debug('[%s] Is edited: %s', msg.uid, msg.edit)
         if msg.edit:
-            if self.client_config['is_pro']:
-                try:
-                    uid_type = msg.uid.split('_')
-                    self.recall_message(uid_type[1])
-                except CoolQAPIFailureException:
-                    raise EFBOperationNotSupported(self._("Failed to recall the message!\n"
-                                                          "This message may have already expired."))
+            try:
+                uid_type = msg.uid.split('_')
+                self.recall_message(uid_type[1])
+            except CoolQAPIFailureException:
+                raise EFBOperationNotSupported(self._("Failed to recall the message!\n"
+                                                      "This message may have already expired."))
 
         if msg.type in [MsgType.Text, MsgType.Link]:
             if msg.text == "kick`":
@@ -505,83 +502,26 @@ class GoCQHttp(BaseClient):
         elif msg.type in (MsgType.Image, MsgType.Sticker, MsgType.Animation):
             self.logger.info("[%s] Image/Sticker/Animation %s", msg.uid, msg.type)
             text = ''
-            if not self.client_config['is_pro']:  # CoolQ Air
-                if self.client_config['air_option']['upload_to_smms']:
-                    text = '[Image] {}'
-                    smms_data = None
-                    smms_email = self.client_config['air_option']['smms_email']
-                    smms_password = self.client_config['air_option']['smms_password']
-                    try:
-                        smms_data = upload_image_smms(msg.file, msg.path, smms_email, smms_password)
-                    except CoolQUnknownException as e:
-                        text = '[Image]'
-                        self.deliver_alert_to_master(self._('Failed to upload the image to sm.ms! Return Msg: ')
-                                                     + getattr(e, 'message', repr(e)))
-                    else:
-                        if smms_data is not None:
-                            text = text.format(smms_data['url'])
-                elif 'upload_to_vim_cn' in self.client_config['air_option'] \
-                        and self.client_config['air_option']['upload_to_vim_cn']:
-                    text = '[Image] {}'
-                    vim_cn_data = None
-                    try:
-                        vim_cn_data = upload_image_vim_cn(msg.file, msg.path)
-                    except CoolQUnknownException as e:
-                        text = '[Image]'
-                        self.deliver_alert_to_master(self._('Failed to upload the image to vim-cn.com! Return Msg: ')
-                                                     + getattr(e, 'message', repr(e)))
-                    else:
-                        if vim_cn_data is not None:
-                            text = text.format(vim_cn_data)
-                elif 'upload_to_mi' in self.client_config['air_option'] \
-                        and self.client_config['air_option']['upload_to_mi']:
-                    text = '[Image] {}'
-                    mi_data = None
-                    try:
-                        mi_data = upload_image_mi(msg.file, msg.path)
-                    except CoolQUnknownException as e:
-                        text = '[Image]'
-                        self.deliver_alert_to_master(self._('Failed to upload the image to mi.com! Return Msg: ')
-                                                     + getattr(e, 'message', repr(e)))
-                    else:
-                        if mi_data is not None:
-                            text = text.format(mi_data)
-                elif 'upload_to_sogou' in self.client_config['air_option'] \
-                        and self.client_config['air_option']['upload_to_sogou']:
-                    text = '[Image] {}'
-                    sogou_data = None
-                    try:
-                        sogou_data = upload_image_sogou(msg.file, msg.path)
-                    except CoolQUnknownException as e:
-                        text = '[Image]'
-                        self.deliver_alert_to_master(self._('Failed to upload the image to sogou.com! Return Msg: ')
-                                                     + getattr(e, 'message', repr(e)))
-                    else:
-                        if sogou_data is not None:
-                            text = text.format(sogou_data)
-                else:
-                    text = '[Image]'
+            if not self.can_send_image:
+                self.check_features()  # Force checking features
+                raise EFBOperationNotSupported(self._("Unable to send image now. Please check your CoolQ version "
+                                                      "or retry later"))
+            if msg.type != MsgType.Sticker:
+                text += m.coolq_code_image_wrapper(msg.file, msg.path)
             else:
-                if not self.can_send_image:
-                    self.check_features()  # Force checking features
-                    raise EFBOperationNotSupported(self._("Unable to send image now. Please check your CoolQ version "
-                                                          "or retry later"))
-                if msg.type != MsgType.Sticker:
-                    text += m.coolq_code_image_wrapper(msg.file, msg.path)
-                else:
-                    with tempfile.NamedTemporaryFile(suffix=".gif") as f:
-                        img = Image.open(msg.file)
-                        try:
-                            alpha = img.split()[3]
-                            mask = Image.eval(alpha, lambda a: 255 if a <= 128 else 0)
-                        except IndexError:
-                            mask = Image.eval(img.split()[0], lambda a: 0)
-                        img = img.convert('RGB').convert('P', palette=Image.ADAPTIVE, colors=255)
-                        img.paste(255, mask)
-                        img.save(f, transparency=255)
-                        msg.file.close()
-                        f.seek(0)
-                        text += m.coolq_code_image_wrapper(f, f.name)
+                with tempfile.NamedTemporaryFile(suffix=".gif") as f:
+                    img = Image.open(msg.file)
+                    try:
+                        alpha = img.split()[3]
+                        mask = Image.eval(alpha, lambda a: 255 if a <= 128 else 0)
+                    except IndexError:
+                        mask = Image.eval(img.split()[0], lambda a: 0)
+                    img = img.convert('RGB').convert('P', palette=Image.ADAPTIVE, colors=255)
+                    img.paste(255, mask)
+                    img.save(f, transparency=255)
+                    msg.file.close()
+                    f.seek(0)
+                    text += m.coolq_code_image_wrapper(f, f.name)
             msg.uid = self.coolq_send_message(chat_type[0], chat_type[1], text)
             if msg.text:
                 self.coolq_send_message(chat_type[0], chat_type[1], msg.text)

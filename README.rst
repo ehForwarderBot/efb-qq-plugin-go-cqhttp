@@ -23,6 +23,5 @@
            api_root: http://127.0.0.1:5700/  # GoCQHttp API接口地址/端口
            host: 127.0.0.1                   # efb-qq-slave 所监听的地址用于接收消息
            port: 8000                        # 同上
-           is_pro: true                      # 设置为 true 即可
 
 2. 控制台启动 ``ehforwarderbot``, 大功告成!

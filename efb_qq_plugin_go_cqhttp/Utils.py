@@ -1,16 +1,11 @@
-import json
 import logging
-import ntpath
 import tempfile
 import urllib.request
 from gettext import translation
 from urllib.error import URLError, HTTPError, ContentTooShortError
 
-import requests
 from ehforwarderbot import Message, coordinator
 from pkg_resources import resource_filename
-
-from .Exceptions import CoolQUnknownException
 
 qq_emoji_list = {  # created by JogleLew and jqqqqqqqqqq, optimized based on Tim's emoji support
     0: '😮',
@@ -627,68 +622,6 @@ def coolq_para_encode(text: str):  # Escape special characters for CQ Code param
     for r in expr:
         text = text.replace(*r)
     return text
-
-
-def upload_image_smms(file, path, email, password):  # Upload image to sm.ms and return the link
-    UPLOAD_URL_TOKEN = 'https://sm.ms/api/v2/token'
-    UPLOAD_URL_IMAGE = 'https://sm.ms/api/v2/upload'
-    UPLOAD_LOGIN = {'username': email,
-                    'password': password}
-    UPLOAD_PARAMS = {'format': 'json', 'ssl': True}
-    resp = requests.post(UPLOAD_URL_TOKEN, params=UPLOAD_LOGIN)
-    status = json.loads(resp.text)
-    if status['code'] == 'success':
-        token = status['data']['token']
-        UPLOAD_HEADER = {'Authorization': token}
-    else:
-        logging.getLogger(__name__).warning(
-            'WARNING: {}'.format(status['msg']))
-        raise CoolQUnknownException(status['msg'])
-    with open(path, 'rb') as f:
-        files = {'smfile': f.read()}
-        resp = requests.post(UPLOAD_URL_IMAGE, files=files, headers=UPLOAD_HEADER,
-                             params=UPLOAD_PARAMS)
-        status = json.loads(resp.text)
-        if status['code'] == 'success':
-            logging.getLogger(__name__).debug('INFO: upload success! url at {}'.format(status['data']['url']))
-            return status['data']
-        else:
-            logging.getLogger(__name__).warning('WARNING: {}'.format(status['msg']))
-            raise CoolQUnknownException(status['msg'])
-
-
-def upload_image_vim_cn(file, path):  # Upload image to img.vim-cn.com and return the link
-    UPLOAD_URL = 'https://img.vim-cn.com/'
-    with open(path, 'rb') as f:
-        files = {'name': f.read()}
-        resp = requests.post(UPLOAD_URL, files=files)
-        if resp.status_code != 200:
-            raise CoolQUnknownException("Failed to upload images to vim-cn.com")
-        return resp.text
-
-
-def upload_image_sogou(file, path):  # Upload image to pic.sogou.com and return the link
-    UPLOAD_URL = 'https://pic.sogou.com/pic/upload_pic.jsp'
-    with open(path, 'rb') as f:
-        files = {'pic_path': f.read()}
-        resp = requests.post(UPLOAD_URL, files=files)
-        if resp.status_code != 200:
-            raise CoolQUnknownException("Failed to upload images to sogou.com")
-        return "https" + resp.text[4:]  # Replace http with https
-
-
-def upload_image_mi(file, path):  # Upload image to shopapi.io.mi.com and return the link
-    UPLOAD_URL = 'https://shopapi.io.mi.com/homemanage/shop/uploadpic'
-    with open(path, 'rb') as f:
-        files = {'pic': (ntpath.basename(path), f.read(), "image/jpeg")}
-        resp = requests.post(UPLOAD_URL, files=files)
-        if resp.status_code != 200:
-            raise CoolQUnknownException("Failed to upload images to mi.com")
-        status = json.loads(resp.text)
-        print(status)
-        if status['message'] != "ok":
-            raise CoolQUnknownException("Failed to upload images to mi.com")
-        return status['result']
 
 
 def param_spliter(str_param):

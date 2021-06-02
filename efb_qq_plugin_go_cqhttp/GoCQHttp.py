@@ -231,6 +231,23 @@ class GoCQHttp(BaseClient):
             context['message'] = text
             self.send_efb_group_notice(context)
 
+        @self.coolq_bot.on_notice('offline_file')
+        def handle_offline_file_upload_msg(context):
+            context['event_description'] = self._("\u2139 Offline File Upload Event")
+            context['uid_prefix'] = 'offline_file'
+            file_info_msg = self._('Filename: {file[name]}\n'
+                                   'File size: {file[size]}').format(file=context['file'])
+            user = self.get_user_info(context['user_id'])
+            text = self._('{remark}({nickname}) uploaded a file to you\n')
+            text = text.format(remark=user['remark'], nickname=user['nickname']) + file_info_msg
+            context['message'] = text
+            self.send_msg_to_master(context)
+            param_dict = {
+                'context': context,
+                'download_url': context['file']['url'],
+            }
+            threading.Thread(target=self.async_download_file, args=[], kwargs=param_dict).start()
+
         @self.coolq_bot.on_notice('group_upload')
         def handle_group_file_upload_msg(context):
             context['event_description'] = self._("\u2139 Group File Upload Event")
@@ -261,7 +278,7 @@ class GoCQHttp(BaseClient):
                 'busid': context['file']['busid']
             }
 
-            threading.Thread(target=self.async_download_file, args=[], kwargs=param_dict).start()
+            threading.Thread(target=self.async_download_group_file, args=[], kwargs=param_dict).start()
 
         @self.coolq_bot.on_notice('friend_add')
         def handle_friend_add_msg(context):
@@ -568,7 +585,21 @@ class GoCQHttp(BaseClient):
             }
         return self.group_member_list[group_id]['members']
 
-    def get_group_info(self, group_id, no_cache=True):
+    def get_user_info(self, user_id: int, no_cache=False):
+        if no_cache or not self.friend_list:
+            self.update_friend_list()
+        user = {'user_id': user_id}
+        friend = self.friend_remark.get(user_id)
+        if friend:
+            user['is_friend'] = True
+            user['nickname'] = friend['nickname']
+            user['remark'] = friend['remark']
+        else:
+            user['is_friend'] = False
+            user['nickname'] = self.get_stranger_info(user_id)['nickname']
+        return user
+
+    def get_group_info(self, group_id, no_cache=False):
         if no_cache or not self.group_list:
             self.group_list = self.coolq_api_query('get_group_list')
         res = self.group_list
@@ -841,12 +872,7 @@ class GoCQHttp(BaseClient):
                     + getattr(e, 'message', repr(e)))
         return 'Done'
 
-    def async_download_file(self, context, group_id, file_id, busid):
-        file = self.coolq_api_query('get_group_file_url',
-                                    group_id=group_id,
-                                    file_id=file_id,
-                                    busid=busid)
-        download_url = file['url']
+    def async_download_file(self, context, download_url):
         res = download_file(download_url)
         if isinstance(res, str):
             context['message'] = self._("[Download] ") + res
@@ -859,10 +885,21 @@ class GoCQHttp(BaseClient):
             efb_msg = self.msg_decorator.qq_file_after_wrapper(data)
             efb_msg.uid = str(context['user_id']) + '_' + str(uuid.uuid4()) + '_' + str(1)
             efb_msg.text = 'Sent a file\n{}'.format(context['file']['name'])
-            efb_msg.chat = self.chat_manager.build_efb_chat_as_group(context)
+            if context['uid_prefix'] == 'offline_file':
+                efb_msg.chat = self.chat_manager.build_efb_chat_as_private(context)
+            elif context['uid_prefix'] == 'group_upload':
+                efb_msg.chat = self.chat_manager.build_efb_chat_as_group(context)
             efb_msg.author = self.chat_manager.build_or_get_efb_member(efb_msg.chat, context)
             efb_msg.deliver_to = coordinator.master
             async_send_messages_to_master(efb_msg)
+
+    def async_download_group_file(self, context, group_id, file_id, busid):
+        file = self.coolq_api_query('get_group_file_url',
+                                    group_id=group_id,
+                                    file_id=file_id,
+                                    busid=busid)
+        download_url = file['url']
+        self.async_download_file(context, download_url)
 
     def get_chat_picture(self, chat: 'Chat') -> BinaryIO:
         chat_type = chat.uid.split('_')

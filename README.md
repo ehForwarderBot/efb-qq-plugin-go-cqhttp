@@ -1,5 +1,7 @@
 # efb-qq-plugin-go-cqhttp
 
+efb-qq-plugin-go-cqhttp 是 efb-qq-slave 的插件，需要配合 efb-qq-slave 使用，使用前请先阅读 [efb-qq-slave 的文档](https://github.com/milkice233/efb-qq-slave/blob/master/README_zh-CN.rst)
+
 下面的教程展示了当 go-cqhttp 和 ehForwarderBot 在同一台机器上运行时如何设置两端。
 
 （高级） 对于其他的情况，例如 go-cqhttp 和 ehForwarderBot 在不同的机器上运行时， `go-cqhttp port url` 和 `go-cqhttp api url` 必须修改为相应的值（前者是 efb-qq-slave 监听的地址/端口，后者是 go-cqhttp 监听的地址/端口），同时防火墙应允许双方的数据包通过，以便双方的请求不会被防火墙拦截。如果双方通信内容必须经过 Internet 传输，请确保已配置 `Access Token` 并启用 `HTTPS` 确保双方通信内容不会在公网被窃听/篡改。

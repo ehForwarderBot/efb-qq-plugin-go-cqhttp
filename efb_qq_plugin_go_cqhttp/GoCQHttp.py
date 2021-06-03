@@ -565,15 +565,15 @@ class GoCQHttp(BaseClient):
         user_id = int(user_id)
         if no_cache or (not self.friend_list) or (user_id not in self.friend_dict):
             self.update_friend_list()
-        friend = self.friend_dict.get(user_id)
+        friend = copy.deepcopy(self.friend_dict.get(user_id))
         if friend:
-            user = copy.deepcopy(friend)
+            user = friend
             user['is_friend'] = True
         else:
-            user = self.stranger_dict.get(user_id)
+            user = copy.deepcopy(self.stranger_dict.get(user_id))
             if no_cache or (user is None):
                 user = self.coolq_api_query('get_stranger_info', user_id=user_id)
-                self.stranger_dict[user_id] = user
+                self.stranger_dict[user_id] = copy.deepcopy(user)
             user['is_friend'] = False
         if group_id is not None:
             user['is_in_group'] = False

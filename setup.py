@@ -20,7 +20,7 @@ setup(
     author='XYenon',
     author_email='i@xyenon.bid',
     url='https://github.com/XYenon/efb-qq-plugin-go-cqhttp',
-    license='GPLv3',
+    license='AGPLv3',
     python_requires='>=3.6',
     keywords=['ehforwarderbot', 'EH Forwarder Bot', 'EH Forwarder Bot Slave Channel',
               'qq', 'chatbot', 'EQS', 'CoolQ', 'go-cqhttp'],

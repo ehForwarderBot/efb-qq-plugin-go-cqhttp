@@ -48,7 +48,7 @@ efb-qq-plugin-go-cqhttp 是 efb-qq-slave 的插件，需要配合 efb-qq-slave �
       ```
 3. 运行 go-cqhttp `./go-cqhttp`
 
-## 配置 efb-qq-slave 端篇
+## 配置 efb-qq-slave 端
 
 1. 安装 efb-qq-plugin-go-cqhttp `pip install git+https://github.com/XYenon/efb-qq-plugin-go-cqhttp`
 2. 为 `milkice.qq` 从端创建 `config.yaml` 配置文件

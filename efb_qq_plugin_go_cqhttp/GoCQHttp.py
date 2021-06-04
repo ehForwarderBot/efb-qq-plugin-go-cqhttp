@@ -6,7 +6,7 @@ import time
 import uuid
 from datetime import timedelta, datetime
 from gettext import translation
-from typing import Any, Dict, List, BinaryIO, Tuple, Optional
+from typing import Any, Dict, List, BinaryIO, Tuple, Optional, Union
 
 import cherrypy
 import cqhttp
@@ -81,6 +81,45 @@ class GoCQHttp(BaseClient):
         self.is_logged_in = False
         self.msg_decorator = QQMsgProcessor(instance=self)
 
+        def message_wrapper(context: Dict[str, Any], msg_element: Dict[str, Any], chat: Chat) -> \
+                Tuple[str, List[Message], List[Tuple[Tuple[int, int], Union[Chat, ChatMember]]]]:
+            msg_type = msg_element['type']
+            msg_data = msg_element['data']
+            main_text: str = ''
+            messages: List[Message] = []
+            at_list: List[Tuple[Tuple[int, int], Union[Chat, ChatMember]]] = []
+            if msg_type == 'text':
+                main_text = msg_data['text']
+            elif msg_type == 'face':
+                qq_face = int(msg_data['id'])
+                if qq_face in qq_emoji_list:
+                    main_text = qq_emoji_list[qq_face]
+                else:
+                    main_text = '\u2753'  # ❓
+            elif msg_type == 'sface':
+                main_text = '\u2753'  # ❓
+            elif msg_type == 'at':
+                # todo Recheck if bug exists
+                g_id = context['group_id']
+                my_uid = self.get_qq_uid()
+                self.logger.debug('My QQ uid: %s\n'
+                                  'QQ mentioned: %s\n', my_uid, msg_data['qq'])
+                if str(msg_data['qq']) == 'all':
+                    group_card = 'all'
+                else:
+                    member_info = self.get_user_info(msg_data['qq'], group_id=g_id)['in_group_info']
+                    group_card = member_info['card'] if member_info['card'] != '' else member_info['nickname']
+                self.logger.debug('Group card: {}'.format(group_card))
+                substitution_begin = len(main_text)
+                substitution_end = len(main_text) + len(group_card) + 1
+                main_text += '@{} '.format(group_card)
+                if str(my_uid) == str(msg_data['qq']) or str(msg_data['qq']) == 'all':
+                    at_dict = ((substitution_begin, substitution_end), chat.self)
+                    at_list.append(at_dict)
+            else:
+                messages.extend(self.call_msg_decorator(msg_type, msg_data, chat))
+            return main_text, messages, at_list
+
         @self.coolq_bot.on_message
         def handle_msg(context):
             self.logger.debug(repr(context))
@@ -88,7 +127,7 @@ class GoCQHttp(BaseClient):
             main_text: str = ''
             messages: List[Message] = []
             qq_uid = context['user_id']
-            at_list = {}
+            at_dict: Dict[Tuple[int, int], Union[Chat, ChatMember]] = {}
             chat: Chat
             author: ChatMember
 
@@ -121,44 +160,16 @@ class GoCQHttp(BaseClient):
                 author = self.chat_manager.build_efb_chat_as_anonymous_user(chat, context)
 
             for msg_element in msg_elements:
-                msg_type = msg_element['type']
-                msg_data = msg_element['data']
-                if msg_type == 'text':
-                    main_text += msg_data['text']
-                elif msg_type == 'face':
-                    qq_face = int(msg_data['id'])
-                    if qq_face in qq_emoji_list:
-                        main_text += qq_emoji_list[qq_face]
-                    else:
-                        main_text += '\u2753'  # ❓
-                elif msg_type == 'sface':
-                    main_text += '\u2753'  # ❓
-                elif msg_type == 'at':
-                    # todo Recheck if bug exists
-                    g_id = context['group_id']
-                    my_uid = self.get_qq_uid()
-                    self.logger.debug('My QQ uid: %s\n'
-                                      'QQ mentioned: %s\n', my_uid, msg_data['qq'])
-                    if str(msg_data['qq']) == 'all':
-                        group_card = 'all'
-                    else:
-                        member_info = self.get_user_info(msg_data['qq'], group_id=g_id)['in_group_info']
-                        group_card = member_info['card'] if member_info['card'] != '' else member_info['nickname']
-                    self.logger.debug('Group card: {}'.format(group_card))
-                    if main_text == '':
-                        substitution_begin = len(main_text)
-                        substitution_end = len(main_text) + len(group_card) + 1
-                        main_text += '@{} '.format(group_card)
-                    else:
-                        substitution_begin = len(main_text) + 1
-                        substitution_end = len(main_text) + len(group_card) + 2
-                        main_text += ' @{} '.format(group_card)
-                    if str(my_uid) == str(msg_data['qq']) or str(msg_data['qq']) == 'all':
-                        at_list[(substitution_begin, substitution_end)] = chat.self
-                else:
-                    messages.extend(self.call_msg_decorator(msg_type, msg_data, chat))
+                sub_main_text, sub_messages, sub_at_list = message_wrapper(context, msg_element, chat)
+                main_text_len = len(main_text)
+                for at_tuple in sub_at_list:
+                    pos = (at_tuple[0][0] + main_text_len, at_tuple[0][1] + main_text_len)
+                    at_dict[pos] = at_tuple[1]
+                main_text += sub_main_text
+                messages.extend(sub_messages)
+
             if main_text != "":
-                messages.append(self.msg_decorator.qq_text_simple_wrapper(main_text, at_list))
+                messages.append(self.msg_decorator.qq_text_simple_wrapper(main_text, at_dict))
             uid: str = str(uuid.uuid4())
             coolq_msg_id = context['message_id']
             for i in range(len(messages)):

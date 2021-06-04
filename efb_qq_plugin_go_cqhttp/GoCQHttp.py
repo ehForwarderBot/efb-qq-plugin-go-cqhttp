@@ -536,9 +536,15 @@ class GoCQHttp(BaseClient):
                 self.coolq_send_message(chat_type[0], chat_type[1], msg.text)
         return msg
 
-    def call_msg_decorator(self, msg_type: str, *args):
-        func = getattr(self.msg_decorator, 'qq_{}_wrapper'.format(msg_type))
-        return func(*args)
+    def call_msg_decorator(self, msg_type: str, *args) -> List[Message]:
+        try:
+            func = getattr(self.msg_decorator, 'qq_{}_wrapper'.format(msg_type))
+        except AttributeError:
+            self.deliver_alert_to_master(self._(f"Unsupported message type: {msg_type}"))
+            self.logger.error(f"Unsupported message type: {msg_type}")
+            return []
+        else:
+            return func(*args)
 
     def get_qq_uid(self):
         res = self.get_login_info()

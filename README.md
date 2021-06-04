@@ -1,6 +1,6 @@
 # efb-qq-plugin-go-cqhttp
 
-efb-qq-plugin-go-cqhttp 是 efb-qq-slave 的插件，需要配合 efb-qq-slave 使用，使用前请先阅读 [efb-qq-slave 的文档](https://github.com/milkice233/efb-qq-slave/blob/master/README_zh-CN.rst)
+efb-qq-plugin-go-cqhttp 是 efb-qq-slave 的插件，需要配合 efb-qq-slave 使用，使用前请先阅读 [efb-qq-slave 的文档](https://github.com/milkice233/efb-qq-slave/blob/master/README_zh-CN.rst)。
 
 下面的教程展示了当 go-cqhttp 和 ehForwarderBot 在同一台机器上运行时如何设置两端。
 
@@ -12,6 +12,7 @@ efb-qq-plugin-go-cqhttp 是 efb-qq-slave 的插件，需要配合 efb-qq-slave �
 
 1. [下载 go-cqhttp](https://docs.go-cqhttp.org/guide/quick_start.html)
 2. 编辑 `config.yaml` 配置文件，注意修改如下部分
+
    ```yaml
    account:         # 账号相关
      uin: 000000000 # QQ 账号
@@ -66,4 +67,4 @@ efb-qq-plugin-go-cqhttp 是 efb-qq-slave 的插件，需要配合 efb-qq-slave �
         port: 8000                        # 同上
    ```
 
-3. 启动 `ehforwarderbot`, 大功告成!
+3. 启动 `ehforwarderbot`，大功告成！

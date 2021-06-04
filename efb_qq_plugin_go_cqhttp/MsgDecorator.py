@@ -247,3 +247,15 @@ class QQMsgProcessor:
                 return self.qq_text_simple_wrapper(text, at_list)
         except Exception:
             return None
+
+    def qq_xml_wrapper(self, data, chat: Chat = None):
+        efb_msg = Message()
+        efb_msg.type = MsgType.Text
+        efb_msg.text = 'Unsupported message type: xml\n' + data['data']
+        return [efb_msg]
+
+    def qq_json_wrapper(self, data, chat: Chat = None):
+        efb_msg = Message()
+        efb_msg.type = MsgType.Text
+        efb_msg.text =  'Unsupported message type: json\n' + data['data']
+        return [efb_msg]

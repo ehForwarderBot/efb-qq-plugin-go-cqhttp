@@ -33,8 +33,8 @@ from .Utils import qq_emoji_list, async_send_messages_to_master, process_quote_t
 
 
 class GoCQHttp(BaseClient):
-    client_name: str = "CoolQ Client"
-    client_id: str = "CoolQ"
+    client_name: str = "GoCQHttp Client"
+    client_id: str = "GoCQHttp"
     client_config: Dict[str, Any]
 
     coolq_bot: CQHttp = None

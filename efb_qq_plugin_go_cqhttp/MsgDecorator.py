@@ -2,7 +2,6 @@ import base64
 import html
 import json
 import logging
-from urllib.parse import quote
 
 import magic
 from ehforwarderbot import Message, MsgType, Chat
@@ -188,7 +187,7 @@ class QQMsgProcessor:
             mime = mime.decode()
         efb_msg.path = efb_msg.file.name
         efb_msg.mime = mime
-        efb_msg.filename = quote(data['filename'])
+        efb_msg.filename = data['filename']
         return efb_msg
 
     def qq_group_broadcast_wrapper(self, data, chat: Chat = None):

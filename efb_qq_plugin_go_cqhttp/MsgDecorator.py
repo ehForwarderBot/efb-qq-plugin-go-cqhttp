@@ -257,5 +257,5 @@ class QQMsgProcessor:
     def qq_json_wrapper(self, data, chat: Chat = None):
         efb_msg = Message()
         efb_msg.type = MsgType.Text
-        efb_msg.text =  'Unsupported message type: json\n' + data['data']
+        efb_msg.text = 'Unsupported message type: json\n' + data['data']
         return [efb_msg]

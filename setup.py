@@ -26,7 +26,7 @@ setup(
               'qq', 'chatbot', 'EQS', 'CoolQ', 'go-cqhttp'],
     classifiers=[
         "Development Status :: 3 - Alpha",
-        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+        "License :: OSI Approved :: GNU Affero General Public License v3",
         "Intended Audience :: Developers",
         "Intended Audience :: End Users/Desktop",
         "Programming Language :: Python :: 3 :: Only",

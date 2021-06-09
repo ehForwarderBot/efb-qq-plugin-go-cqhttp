@@ -81,7 +81,7 @@ class GoCQHttp(BaseClient):
         self.is_logged_in = False
         self.msg_decorator = QQMsgProcessor(instance=self)
 
-        def message_wrapper(context: Dict[str, Any], msg_element: Dict[str, Any], chat: Chat) -> \
+        def message_element_wrapper(context: Dict[str, Any], msg_element: Dict[str, Any], chat: Chat) -> \
                 Tuple[str, List[Message], List[Tuple[Tuple[int, int], Union[Chat, ChatMember]]]]:
             msg_type = msg_element['type']
             msg_data = msg_element['data']
@@ -112,22 +112,38 @@ class GoCQHttp(BaseClient):
                 self.logger.debug('Group card: {}'.format(group_card))
                 substitution_begin = len(main_text)
                 substitution_end = len(main_text) + len(group_card) + 1
-                main_text += '@{} '.format(group_card)
+                main_text = '@{} '.format(group_card)
                 if str(my_uid) == str(msg_data['qq']) or str(msg_data['qq']) == 'all':
                     at_dict = ((substitution_begin, substitution_end), chat.self)
                     at_list.append(at_dict)
+            elif msg_type == 'reply':
+                ref_user = self.get_user_info(msg_data['qq'])
+                main_text = f'「{ref_user["remark"]}（{ref_user["nickname"]}）：{msg_data["text"]}」\n' \
+                            '- - - - - - - - - - - - - - -\n'
             else:
                 messages.extend(self.call_msg_decorator(msg_type, msg_data, chat))
             return main_text, messages, at_list
+
+        def message_elements_wrapper(context: Dict[str, Any], msg_elements: List[Dict[str, Any]], chat: Chat) -> \
+                Tuple[str, List[Message], Dict[Tuple[int, int], Union[Chat, ChatMember]]]:
+            messages: List[Message] = []
+            main_text: str = ''
+            at_dict: Dict[Tuple[int, int], Union[Chat, ChatMember]] = {}
+            for msg_element in msg_elements:
+                sub_main_text, sub_messages, sub_at_list = message_element_wrapper(context, msg_element, chat)
+                main_text_len = len(main_text)
+                for at_tuple in sub_at_list:
+                    pos = (at_tuple[0][0] + main_text_len, at_tuple[0][1] + main_text_len)
+                    at_dict[pos] = at_tuple[1]
+                main_text += sub_main_text
+                messages.extend(sub_messages)
+            return main_text, messages, at_dict
 
         @self.coolq_bot.on_message
         def handle_msg(context):
             self.logger.debug(repr(context))
             msg_elements = context['message']
-            main_text: str = ''
-            messages: List[Message] = []
             qq_uid = context['user_id']
-            at_dict: Dict[Tuple[int, int], Union[Chat, ChatMember]] = {}
             chat: Chat
             author: ChatMember
 
@@ -159,14 +175,7 @@ class GoCQHttp(BaseClient):
             else:  # anonymous user in group
                 author = self.chat_manager.build_efb_chat_as_anonymous_user(chat, context)
 
-            for msg_element in msg_elements:
-                sub_main_text, sub_messages, sub_at_list = message_wrapper(context, msg_element, chat)
-                main_text_len = len(main_text)
-                for at_tuple in sub_at_list:
-                    pos = (at_tuple[0][0] + main_text_len, at_tuple[0][1] + main_text_len)
-                    at_dict[pos] = at_tuple[1]
-                main_text += sub_main_text
-                messages.extend(sub_messages)
+            main_text, messages, at_dict = message_elements_wrapper(context, msg_elements, chat)
 
             if main_text != "":
                 messages.append(self.msg_decorator.qq_text_simple_wrapper(main_text, at_dict))

@@ -8,7 +8,7 @@ from ehforwarderbot import Message, MsgType, Chat
 from ehforwarderbot.message import LocationAttribute, LinkAttribute, Substitutions
 
 from . import GoCQHttp
-from .Utils import cq_get_image, download_voice
+from .Utils import cq_get_image, download_voice, download_file
 
 
 class QQMsgProcessor:
@@ -250,11 +250,24 @@ class QQMsgProcessor:
     def qq_xml_wrapper(self, data, chat: Chat = None):
         efb_msg = Message()
         efb_msg.type = MsgType.Text
-        efb_msg.text = 'Unsupported message type: xml\n' + data['data']
+        efb_msg.text = data['data']
         return [efb_msg]
 
     def qq_json_wrapper(self, data, chat: Chat = None):
         efb_msg = Message()
         efb_msg.type = MsgType.Text
-        efb_msg.text = 'Unsupported message type: json\n' + data['data']
+        efb_msg.text = data['data']
+        return [efb_msg]
+
+    def qq_video_wrapper(self, data, chat: Chat = None):
+        res = download_file(data['url'])
+        mime = magic.from_file(res.name, mime=True)
+        if isinstance(mime, bytes):
+            mime = mime.decode()
+        efb_msg = Message(
+            type=MsgType.Video,
+            file=res,
+            filename=res.name,
+            mime=mime
+        )
         return [efb_msg]

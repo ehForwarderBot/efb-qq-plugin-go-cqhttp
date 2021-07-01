@@ -560,9 +560,9 @@ class GoCQHttp(BaseClient):
         try:
             func = getattr(self.msg_decorator, 'qq_{}_wrapper'.format(msg_type))
         except AttributeError:
-            self.deliver_alert_to_master(self._(f"Unsupported message type: {msg_type}"))
-            self.logger.error(f"Unsupported message type: {msg_type}")
-            return []
+            msg = f"Unsupported message type: {msg_type}"
+            self.logger.error(msg)
+            return self.msg_decorator.qq_unsupported_wrapper(msg)
         else:
             return func(*args)
 

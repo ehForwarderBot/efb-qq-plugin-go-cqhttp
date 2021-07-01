@@ -271,3 +271,10 @@ class QQMsgProcessor:
             mime=mime
         )
         return [efb_msg]
+
+    def qq_unsupported_wrapper(self, data, chat: Chat = None):
+        efb_msg = Message(
+            type=MsgType.Unsupported,
+            text=data
+        )
+        return [efb_msg]

@@ -1,6 +1,6 @@
 # efb-qq-plugin-go-cqhttp
 
-efb-qq-plugin-go-cqhttp 是 efb-qq-slave 的插件，需要配合 efb-qq-slave 使用，使用前请先阅读 [efb-qq-slave 的文档](https://github.com/milkice233/efb-qq-slave/blob/master/README_zh-CN.rst)。
+efb-qq-plugin-go-cqhttp 是 efb-qq-slave 的插件，需要配合 efb-qq-slave 使用，使用前请先阅读 [efb-qq-slave](https://github.com/milkice233/efb-qq-slave) 的文档。
 
 下面的教程展示了当 go-cqhttp 和 ehForwarderBot 在同一台机器上运行时如何设置两端。
 
@@ -22,6 +22,9 @@ efb-qq-plugin-go-cqhttp 是 efb-qq-slave 的插件，需要配合 efb-qq-slave �
      # 上报数据类型
      # efb-qq-plugin-go-cqhttp 仅支持 array 类型
      post-format: array
+     # 为Reply附加更多信息
+     extra-reply-data: true
+
 
    # 默认中间件锚点
    default-middlewares: &default

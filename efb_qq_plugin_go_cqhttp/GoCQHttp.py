@@ -541,9 +541,10 @@ class GoCQHttp(BaseClient):
                     msg.file.close()
                     f.seek(0)
                     text += m.coolq_code_image_wrapper(f, f.name)
-            msg.uid = self.coolq_send_message(chat_type[0], chat_type[1], text)
             if msg.text:
-                self.coolq_send_message(chat_type[0], chat_type[1], msg.text)
+                msg.uid = self.coolq_send_message(chat_type[0], chat_type[1], text + coolq_text_encode(msg.text))
+            else:
+                msg.uid = self.coolq_send_message(chat_type[0], chat_type[1], text)
         # todo More MsgType Support
         elif msg.type is MsgType.Voice:
             if not self.can_send_voice:

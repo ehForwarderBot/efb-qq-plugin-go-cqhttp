@@ -31,6 +31,8 @@ from .MsgDecorator import QQMsgProcessor
 from .Utils import qq_emoji_list, async_send_messages_to_master, process_quote_text, coolq_text_encode, \
     download_user_avatar, download_group_avatar, download_file
 
+all_group_list = []
+
 
 class GoCQHttp(BaseClient):
     client_name: str = "GoCQHttp Client"
@@ -146,13 +148,24 @@ class GoCQHttp(BaseClient):
             qq_uid = context['user_id']
             chat: Chat
             author: ChatMember
-
-            user = self.get_user_info(qq_uid)
+            
+            try:
+                user = self.get_user_info(qq_uid)
+            except:
+                return
             if context['message_type'] == 'private':
                 context['alias'] = user['remark']
                 chat: PrivateChat = self.chat_manager.build_efb_chat_as_private(context)
             else:
-                chat = self.chat_manager.build_efb_chat_as_group(context)
+                try:
+                    chat = self.chat_manager.build_efb_chat_as_group(context)
+                except:
+                    return
+                is_discuss = False if context['message_type'] == 'group' else True
+                chat_uid = context['discuss_id'] if is_discuss else context['group_id']
+                if len(all_group_list) > 0 and not chat_uid in all_group_list:
+                    print(f"Filter 1 msg from {chat.uid} {chat.name}.")
+                    return
 
             if 'anonymous' not in context or context['anonymous'] is None:
                 if context['message_type'] == 'group':
@@ -204,6 +217,9 @@ class GoCQHttp(BaseClient):
         @self.coolq_bot.on_notice('group_increase')
         def handle_group_increase_msg(context):
             context['event_description'] = self._('\u2139 Group Member Increase Event')
+            if len(all_group_list) > 0 and not context['group_id'] in all_group_list:
+                print(f"Filter 1 group_increase from {context['group_id']}.")
+                return
             if (context['sub_type']) == 'invite':
                 text = self._('{nickname}({context[user_id]}) joined the group({group_name}) via invitation')
             else:
@@ -223,6 +239,9 @@ class GoCQHttp(BaseClient):
         @self.coolq_bot.on_notice('group_decrease')
         def handle_group_decrease_msg(context):
             context['event_description'] = self._("\u2139 Group Member Decrease Event")
+            if len(all_group_list) > 0 and not context['group_id'] in all_group_list:
+                print(f"Filter 1 group_decrease from {context['group_id']}.")
+                return
             original_group = self.get_group_info(context['group_id'], False)
             group_name = context['group_id']
             if original_group is not None and 'group_name' in original_group:
@@ -262,6 +281,9 @@ class GoCQHttp(BaseClient):
         def handle_group_file_upload_msg(context):
             context['event_description'] = self._("\u2139 Group File Upload Event")
             context['uid_prefix'] = 'group_upload'
+            if len(all_group_list) > 0 and not context['group_id'] in all_group_list:
+                print(f"Filter 1 file from {context['group_id']}.")
+                return
             original_group = self.get_group_info(context['group_id'], False)
             group_name = context['group_id']
             if original_group is not None and 'group_name' in original_group:
@@ -332,13 +354,13 @@ class GoCQHttp(BaseClient):
             context['group_id'] = str(context['group_id']) + "_notification"
             context['message_type'] = 'group'
             context['event_description'] = '\u2139 New Group Join Request'
-            original_group = self.get_group_info(context['group_id'], False)
+            original_group = self.get_group_info(context['group_id_orig'], False)
             group_name = context['group_id']
             if original_group is not None and 'group_name' in original_group:
                 group_name = original_group['group_name']
             msg = Message()
             msg.uid = 'group' + '_' + str(context['group_id'])
-            msg.author = self.chat_manager.build_efb_chat_as_system_user(context)
+            msg.author = (self.chat_manager.build_efb_chat_as_system_user(context)).other
             msg.chat = self.chat_manager.build_efb_chat_as_group(context)
             msg.deliver_to = coordinator.master
             msg.type = MsgType.Text

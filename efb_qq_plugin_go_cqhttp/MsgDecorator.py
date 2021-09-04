@@ -27,6 +27,13 @@ class QQMsgProcessor:
             efb_msg.text = self._('[Image Source missing]')
             return [efb_msg]
 
+        # flash
+        if 'type' in data:
+            if 'flash' == data['type']:
+                data['url'] = f'https://gchat.qpic.cn/gchatpic_new/1/1-1-' \
+                              f'{data["file"].replace(".image", "").upper()}/0?term=3%27'
+                efb_msg.text = self._('Send a flash picture.')
+
         efb_msg.file = cq_get_image(data['url'])
         if efb_msg.file is None:
             efb_msg.type = MsgType.Text

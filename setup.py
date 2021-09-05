@@ -8,7 +8,7 @@ if sys.version_info < (3, 6):
 __version__ = ""
 exec(open('efb_qq_plugin_go_cqhttp/__version__.py').read())
 
-long_description = open('README.md').read()
+long_description = open('README.md', encoding='utf-8').read()
 
 setup(
     name='efb-qq-plugin-go-cqhttp',

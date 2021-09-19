@@ -257,6 +257,41 @@ class QQMsgProcessor:
         efb_msg = Message()
         efb_msg.type = MsgType.Text
         efb_msg.text = data['data']
+
+        try:
+            # In general, data['data'] is a JSON string
+            dict_data = json.loads(efb_msg.text)
+            if type(dict_data) != dict or 'app' not in dict_data:
+                return [efb_msg]
+
+            # Group of announcement
+            if dict_data['app'] == 'com.tencent.mannounce':
+                meta_mannounce = dict_data['meta']['mannounce']
+                efb_msg.text = "[{prompt}]\n\n{text}".format(prompt=str(base64.b64decode(meta_mannounce['title']), 'UTF-8'), text=str(base64.b64decode(meta_mannounce['text']), 'UTF-8'))
+
+            # Watch, listen and play together
+            elif dict_data['app'] == 'com.tencent.together':
+                meta_invite = dict_data['meta']['invite']
+                efb_msg.text = "[{prompt}]\n\n{text}\n\n{cover}".format(prompt=meta_invite['title'], text=meta_invite['summary'], cover=meta_invite['cover'])
+
+            # QQ vip card
+            elif dict_data['app'] == 'com.tencent.qqvip_singlepic':
+                efb_msg.text = efb_msg.text
+
+            # Tencent mini App (01 unknown)
+            elif dict_data['app'] == 'com.tencent.miniapp_01':
+                meta_detail1 = dict_data['meta']['detail_1']
+                url = meta_detail1['qqdocurl'] if 'qqdocurl' in meta_detail1 else meta_detail1['url']
+                efb_msg.text = "{prompt}\n\n{desc}\n\n{url}\n\n{preview}".format(prompt=dict_data['prompt'], desc=meta_detail1['desc'], url=url, preview=meta_detail1['preview'])
+
+            # Shared third-party Apps
+            elif dict_data['app'] == 'com.tencent.structmsg':
+                meta_view = dict_data['meta'][dict_data['view']]
+                efb_msg.text = "{prompt}\n\n{desc}\n\n{url}\n\n{preview}".format(prompt=dict_data['prompt'], desc=meta_view['desc'], url=meta_view['jumpUrl'], preview=meta_view['preview'])
+
+        except:
+            self.logger.error(f"json_wrapper_info: {data}\nexc_info:{sys.exc_info()[0]}")
+
         return [efb_msg]
 
     def qq_video_wrapper(self, data, chat: Chat = None):

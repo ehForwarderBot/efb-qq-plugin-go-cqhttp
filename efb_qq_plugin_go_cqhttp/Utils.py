@@ -7,6 +7,14 @@ from urllib.error import URLError, HTTPError, ContentTooShortError
 from ehforwarderbot import Message, coordinator
 from pkg_resources import resource_filename
 
+import pydub as pydub
+
+try:
+    import Silkv3
+    VOICE_SUPPORTED = True
+except ImportError:
+    VOICE_SUPPORTED = False
+
 qq_emoji_list = {  # created by JogleLew and jqqqqqqqqqq, optimized based on Tim's emoji support, updated by xzsk2 to mobileqq v8.8.11
     0: '😮',
     1: '😣',
@@ -749,19 +757,23 @@ def download_group_avatar(uid: str):
     return file
 
 
-def download_voice(filename: str, api_root: str, access_token: str):
-    file = tempfile.NamedTemporaryFile()
-    url = '{url}/data/record/{file}'.format(url=api_root, file=filename)
-    try:
-        opener = urllib.request.build_opener()
-        opener.addheaders = [("Authorization", "Bearer {at}".format(at=access_token))]
-
-        urllib.request.install_opener(opener)
-        urllib.request.urlretrieve(url, file.name)
-    except (URLError, HTTPError, ContentTooShortError) as e:
-        logging.getLogger(__name__).warning("Error occurs when downloading files: " + str(e))
-        return _("Error occurs when downloading files: ") + str(e)
-    if file.seek(0, 2) <= 0:
-        raise EOFError('File downloaded is Empty')
-    file.seek(0)
-    return file
+def download_voice(filename: str, url: str):
+    if not VOICE_SUPPORTED:
+        raise EOFError('not support')
+    else   
+        input_file = tempfile.NamedTemporaryFile()
+        try:
+            urllib.request.urlretrieve(url, input_file.name)
+        except (URLError, HTTPError, ContentTooShortError) as e:
+            logging.getLogger(__name__).warning("Error occurs when downloading files: " + str(e))
+            return _("Error occurs when downloading files: ") + str(e)
+        if input_file.seek(0, 2) <= 0:
+            raise EOFError('File downloaded is Empty')
+        input_file.seek(0)
+        output_file = tempfile.NamedTemporaryFile()
+        if not Silkv3.decode(input_file.name, output_file.name):
+            raise EOFError('tran failed')
+        pydub.AudioSegment.from_raw(file=output_file, sample_width=2, frame_rate=24000, channels=1) \
+            .export(output_file, format="ogg", codec="libopus",
+                    parameters=['-vbr', 'on'])
+        return output_file

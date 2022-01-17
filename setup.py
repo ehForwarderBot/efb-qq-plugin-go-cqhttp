@@ -43,4 +43,8 @@ setup(
     entry_points={
         'ehforwarderbot.qq.plugin': 'GoCQHttp = efb_qq_plugin_go_cqhttp:GoCQHttp'
     }
+    ext_modules=[Extension('Silkv3',
+                           sources=get_file_list('lib/silkv3/src'),
+                           include_dirs=["lib/silkv3/interface/"]
+                           )]
 )

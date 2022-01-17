@@ -1,6 +1,8 @@
 import sys
+from os import listdir
+from os.path import isfile, join
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
 
 if sys.version_info < (3, 6):
     raise Exception("Python 3.6 or higher is required. Your version is %s." % sys.version)
@@ -8,7 +10,10 @@ if sys.version_info < (3, 6):
 __version__ = ""
 exec(open('efb_qq_plugin_go_cqhttp/__version__.py').read())
 
-long_description = open('README.md').read()
+long_description = open('README.md', encoding='utf-8').read()
+
+def get_file_list(path: str):
+    return [join(path, f) for f in listdir(path) if isfile(join(path, f)) and f.endswith('.c')]
 
 setup(
     name='efb-qq-plugin-go-cqhttp',
@@ -38,11 +43,11 @@ setup(
     install_requires=[
         "efb-qq-slave", "ehforwarderbot",
         "PyYaml",
-        'requests', 'python-magic', 'Pillow', 'cqhttp>=1.3.0', 'cherrypy>=18.5.0'
+        'requests', 'python-magic', 'Pillow', 'cqhttp>=1.3.0', 'cherrypy>=18.5.0', "pydub"
     ],
     entry_points={
         'ehforwarderbot.qq.plugin': 'GoCQHttp = efb_qq_plugin_go_cqhttp:GoCQHttp'
-    }
+    },
     ext_modules=[Extension('Silkv3',
                            sources=get_file_list('lib/silkv3/src'),
                            include_dirs=["lib/silkv3/interface/"]

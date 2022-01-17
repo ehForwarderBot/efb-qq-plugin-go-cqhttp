@@ -760,7 +760,7 @@ def download_group_avatar(uid: str):
 def download_voice(filename: str, url: str):
     if not VOICE_SUPPORTED:
         raise EOFError('not support')
-    else   
+    else:   
         input_file = tempfile.NamedTemporaryFile()
         try:
             urllib.request.urlretrieve(url, input_file.name)

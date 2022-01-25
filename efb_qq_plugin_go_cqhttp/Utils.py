@@ -1,6 +1,7 @@
 import logging
 import tempfile
 import urllib.request
+# import os
 from gettext import translation
 from urllib.error import URLError, HTTPError, ContentTooShortError
 
@@ -765,3 +766,10 @@ def download_voice(filename: str, api_root: str, access_token: str):
         raise EOFError('File downloaded is Empty')
     file.seek(0)
     return file
+
+# def convert_voice(filename: str): # A weak function to convert silk to mp3. Plz install ffmpeg and Silkdecoder(from https://github.com/kn007/silk-v3-decoder) first. 
+#     os.system("silkdecoder {} {}.pcm".format(filename,filename))
+#     os.system("ffmpeg -y -f s16le -ar 24000 -ac 1 -i {}.pcm {}.mp3".format(filename,filename))
+#     os.system("rm -rf {} {}.pcm".format(filename,filename))
+#     file=open("{}.mp3".format(filename),"rb")
+#     return file

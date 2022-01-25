@@ -9,6 +9,7 @@ from ehforwarderbot.message import LocationAttribute, LinkAttribute, Substitutio
 
 from . import GoCQHttp
 from .Utils import cq_get_image, download_voice, download_file
+# from .Utils import convert_voice
 
 
 class QQMsgProcessor:
@@ -63,6 +64,23 @@ class QQMsgProcessor:
             efb_msg.text = self._('[Voice Message] Please check it on your QQ')
             logging.getLogger(__name__).exception("Failed to download voice")
         return [efb_msg]
+    
+    # def qq_record_wrapper(self, data, chat: Chat = None):  # A choice if you need to receive voice messages via Telegram
+    #     efb_msg = Message()
+    #     try:
+    #         file_path = "## THE PATH OF YOUR GO-CQHTTP VOICE FOLDER LIKE /home/efb/cq/data/voices/ ##"+data["file"]
+    #         efb_msg.type = MsgType.Audio
+    #         efb_msg.file = convert_voice(file_path)
+    #         mime = magic.from_file(efb_msg.file.name, mime=True)
+    #         if isinstance(mime, bytes):
+    #             mime = mime.decode()
+    #         efb_msg.path = efb_msg.file.name
+    #         efb_msg.mime = mime
+    #     except Exception:
+    #         efb_msg.type = MsgType.Unsupported
+    #         efb_msg.text = self._('[Voice Message] Please check it on your QQ')
+    #         logging.getLogger(__name__).exception("Failed to download voice")
+    #     return [efb_msg]
 
     def qq_share_wrapper(self, data, chat: Chat = None):
         efb_msg = Message(
@@ -288,6 +306,12 @@ class QQMsgProcessor:
             elif dict_data['app'] == 'com.tencent.structmsg':
                 meta_view = dict_data['meta'][dict_data['view']]
                 efb_msg.text = "{prompt}\n\n{desc}\n\n{url}\n\n{preview}".format(prompt=dict_data['prompt'], desc=meta_view['desc'], url=meta_view['jumpUrl'], preview=meta_view['preview'])
+
+            elif dict_data['app'] == 'com.tencent.map':
+                efb_msg.text = "【位置消息】\n地址：{}\n点击导航（高德）：https://urljump.vercel.app/?query=amapuri://route/plan?dev=0&dlat={}&dlon={}".format(dict_data['meta']['Location.Search']['address'],dict_data['meta']['Location.Search']['lat'],dict_data['meta']['Location.Search']['lng'])
+            
+            elif dict_data['app'] == 'com.tencent.qq.checkin':
+                efb_msg.text = "【群签到】\n内容：{}\n图片：{}".format(dict_data['meta']['checkInData']['desc'],dict_data['meta']['checkInData']['cover']['url'])
 
         except:
             self.logger.error(f"json_wrapper_info: {data}\nexc_info:{sys.exc_info()[0]}")

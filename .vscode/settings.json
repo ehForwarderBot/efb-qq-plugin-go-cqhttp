@@ -1,0 +1,19 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[toml]": {
+    "editor.defaultFormatter": "tamasfe.even-better-toml"
+  },
+  "python.autoComplete.extraPaths": [
+    "./__pypackages__/3.7/lib",
+    "./__pypackages__/3.8/lib",
+    "./__pypackages__/3.9/lib",
+    "./__pypackages__/3.10/lib"
+  ],
+  "python.analysis.extraPaths": [
+    "./__pypackages__/3.7/lib",
+    "./__pypackages__/3.8/lib",
+    "./__pypackages__/3.9/lib",
+    "./__pypackages__/3.10/lib"
+  ],
+  "python.formatting.provider": "black"
+}

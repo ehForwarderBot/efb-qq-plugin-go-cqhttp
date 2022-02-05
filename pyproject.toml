@@ -46,10 +46,20 @@ homepage = "https://github.com/ehForwarderBot/efb-qq-plugin-go-cqhttp"
 [project.entry-points."ehforwarderbot.qq.plugin"]
 GoCQHttp = "efb_qq_plugin_go_cqhttp:GoCQHttp"
 
-[tool]
-[tool.pdm]
-version = { from = "efb_qq_plugin_go_cqhttp/__init__.py" }
-
 [build-system]
 requires = ["pdm-pep517"]
 build-backend = "pdm.pep517.api"
+
+[tool.pdm]
+version = { from = "efb_qq_plugin_go_cqhttp/__init__.py" }
+
+[tool.pdm.dev-dependencies]
+dev = ["pre-commit"]
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+profile = "black"
+atomic = true
+filter_files = true

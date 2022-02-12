@@ -33,7 +33,7 @@ efb-qq-plugin-go-cqhttp 是 efb-qq-slave 的插件，需要配合 efb-qq-slave �
       # 默认中间件锚点
       default-middlewares: &default
         # 访问密钥，强烈推荐在公网的服务器设置
-        access-token: ''
+        access_token: ''
 
       servers:
         # HTTP 通信设置

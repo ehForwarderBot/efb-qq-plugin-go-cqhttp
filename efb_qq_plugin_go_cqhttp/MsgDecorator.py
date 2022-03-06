@@ -49,13 +49,8 @@ class QQMsgProcessor:
     def qq_record_wrapper(self, data, chat: Chat = None):  # Experimental!
         efb_msg = Message()
         try:
-            transformed_file = self.inst.coolq_api_query("get_record", file=data["file"], out_format="mp3")
             efb_msg.type = MsgType.Audio
-            efb_msg.file = download_voice(
-                transformed_file["file"],
-                self.inst.client_config["api_root"].rstrip("/"),
-                self.inst.client_config["access_token"],
-            )
+            efb_msg.file = download_voice(data["url"])
             mime = magic.from_file(efb_msg.file.name, mime=True)
             if isinstance(mime, bytes):
                 mime = mime.decode()

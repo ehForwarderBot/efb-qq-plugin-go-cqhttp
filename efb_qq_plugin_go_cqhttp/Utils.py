@@ -4,6 +4,8 @@ import urllib.request
 from gettext import translation
 from urllib.error import ContentTooShortError, HTTPError, URLError
 
+import pilk
+import pydub
 from ehforwarderbot import Message, coordinator
 from pkg_resources import resource_filename
 
@@ -752,19 +754,27 @@ def download_group_avatar(uid: str):
     return file
 
 
-def download_voice(filename: str, api_root: str, access_token: str):
-    file = tempfile.NamedTemporaryFile()
-    url = "{url}/data/record/{file}".format(url=api_root, file=filename)
-    try:
-        opener = urllib.request.build_opener()
-        opener.addheaders = [("Authorization", "Bearer {at}".format(at=access_token))]
-
-        urllib.request.install_opener(opener)
-        urllib.request.urlretrieve(url, file.name)
-    except (URLError, HTTPError, ContentTooShortError) as e:
-        logging.getLogger(__name__).warning("Error occurs when downloading files: " + str(e))
-        return _("Error occurs when downloading files: ") + str(e)
-    if file.seek(0, 2) <= 0:
-        raise EOFError("File downloaded is Empty")
-    file.seek(0)
-    return file
+def download_voice(voice_url: str):
+    with tempfile.NamedTemporaryFile() as origin_file:
+        try:
+            with urllib.request.build_opener() as opener:
+                urllib.request.install_opener(opener)
+                urllib.request.urlretrieve(voice_url, origin_file.name)
+        except (URLError, HTTPError, ContentTooShortError) as e:
+            logging.getLogger(__name__).warning("Error occurs when downloading files: " + str(e))
+            return _("Error occurs when downloading files: ") + str(e)
+        if origin_file.seek(0, 2) <= 0:
+            raise EOFError("File downloaded is Empty")
+        origin_file.seek(0)
+        silk_header = origin_file.read(10)
+        origin_file.seek(0)
+        if b"#!SILK_V3" in silk_header:
+            with tempfile.NamedTemporaryFile() as pcm_file:
+                pilk.decode(origin_file.name, pcm_file.name)
+                audio_file = tempfile.NamedTemporaryFile()
+                pydub.AudioSegment.from_raw(file=pcm_file, sample_width=2, frame_rate=24000, channels=1).export(
+                    audio_file, format="ogg", codec="libopus", parameters=["-vbr", "on"]
+                )
+        else:
+            audio_file = origin_file
+        return audio_file

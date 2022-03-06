@@ -1,7 +1,6 @@
 import logging
 import tempfile
 import urllib.request
-# import os
 from gettext import translation
 from urllib.error import ContentTooShortError, HTTPError, URLError
 

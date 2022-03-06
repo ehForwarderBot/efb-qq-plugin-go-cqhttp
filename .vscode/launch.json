@@ -8,7 +8,8 @@
       "name": "Python: 模块",
       "type": "python",
       "request": "launch",
-      "module": "ehforwarderbot"
+      "module": "ehforwarderbot",
+      "args": ["-v"]
     }
   ]
 }

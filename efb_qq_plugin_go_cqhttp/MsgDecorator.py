@@ -299,11 +299,18 @@ class QQMsgProcessor:
                     preview=meta_view["preview"],
                 )
 
-            elif dict_data['app'] == 'com.tencent.map':
-                efb_msg.text = "【位置消息】\n地址：{}\n点击导航（高德）：https://urljump.vercel.app/?query=amapuri://route/plan?dev=0&dlat={}&dlon={}".format(dict_data['meta']['Location.Search']['address'],dict_data['meta']['Location.Search']['lat'],dict_data['meta']['Location.Search']['lng'])
-            
-            elif dict_data['app'] == 'com.tencent.qq.checkin':
-                efb_msg.text = "【群签到】\n内容：{}\n图片：{}".format(dict_data['meta']['checkInData']['desc'],dict_data['meta']['checkInData']['cover']['url'])
+            elif dict_data["app"] == "com.tencent.map":
+                efb_msg.text = "【位置消息】\n地址：{}\n点击导航（高德）： \
+                    https://urljump.vercel.app/?query=amapuri://route/plan?dev=0&dlat={}&dlon={}".format(
+                    dict_data["meta"]["Location.Search"]["address"],
+                    dict_data["meta"]["Location.Search"]["lat"],
+                    dict_data["meta"]["Location.Search"]["lng"],
+                )
+
+            elif dict_data["app"] == "com.tencent.qq.checkin":
+                efb_msg.text = "【群签到】\n内容：{}\n图片：{}".format(
+                    dict_data["meta"]["checkInData"]["desc"], dict_data["meta"]["checkInData"]["cover"]["url"]
+                )
 
         except Exception:
             self.logger.error(f"json_wrapper_info: {data}\nexc_info:{sys.exc_info()[0]}")

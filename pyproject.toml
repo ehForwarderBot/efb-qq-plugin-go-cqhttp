@@ -11,6 +11,8 @@ dependencies = [
     "Pillow~=9.0.1",
     "cqhttp~=1.3.1",
     "CherryPy~=18.6.1",
+    "pilk~=0.0.2",
+    "pydub~=0.25.1",
 ]
 requires-python = ">=3.7"
 license = { text = "AGPL-3.0-only" }
@@ -54,7 +56,7 @@ build-backend = "pdm.pep517.api"
 version = { from = "efb_qq_plugin_go_cqhttp/__init__.py" }
 
 [tool.pdm.dev-dependencies]
-dev = ["pre-commit"]
+dev = ["pre-commit", "efb-telegram-master~=2.2.4"]
 
 [tool.black]
 line-length = 120

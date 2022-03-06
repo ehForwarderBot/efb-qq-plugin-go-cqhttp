@@ -104,6 +104,24 @@ class GoCQHttp(BaseClient):
         self.is_logged_in = False
         self.msg_decorator = QQMsgProcessor(instance=self)
 
+        def forward_msgs_wrapper(msg_elements: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+            fmt_msgs = []
+            for msg in msg_elements:
+                from_user = self.get_user_info(msg["sender"]["user_id"])
+                header_text = {"data": {"text": f'{from_user["remark"]}（{from_user["nickname"]}）：\n'}, "type": "text"}
+                footer_text = {"data": {"text": "\n- - - - - - - - - - - - - - -\n"}, "type": "text"}
+                msg["content"].insert(0, header_text)
+                msg["content"].append(footer_text)
+                for i, inner_msg in enumerate(msg["content"]):
+                    if "content" in inner_msg:
+                        if i == 1:
+                            fmt_msgs.pop()
+                            msg["content"].pop()
+                        fmt_msgs += forward_msgs_wrapper([inner_msg])
+                    else:
+                        fmt_msgs.append(inner_msg)
+            return fmt_msgs
+
         def message_element_wrapper(
             context: Dict[str, Any], msg_element: Dict[str, Any], chat: Chat
         ) -> Tuple[str, List[Message], List[Tuple[Tuple[int, int], Union[Chat, ChatMember]]]]:
@@ -145,6 +163,16 @@ class GoCQHttp(BaseClient):
                     f'「{ref_user["remark"]}（{ref_user["nickname"]}）：{msg_data["text"]}」\n'
                     "- - - - - - - - - - - - - - -\n"
                 )
+            elif msg_type == "forward":
+                forward_msgs = self.coolq_api_query("get_forward_msg", message_id=msg_data["id"])["messages"]
+                logging.debug(f"Forwarded message: {forward_msgs}")
+                fmt_forward_msgs = forward_msgs_wrapper(forward_msgs)
+                logging.debug(f"Formated forwarded message: {forward_msgs}")
+                header_msg = {"data": {"text": "合并转发消息开始\n- - - - - - - - - - - - - - -\n"}, "type": "text"}
+                footer_msg = {"data": {"text": "合并转发消息结束"}, "type": "text"}
+                fmt_forward_msgs.insert(0, header_msg)
+                fmt_forward_msgs.append(footer_msg)
+                return message_elements_wrapper(context, fmt_forward_msgs, chat)
             else:
                 messages.extend(self.call_msg_decorator(msg_type, msg_data, chat))
             return main_text, messages, at_list

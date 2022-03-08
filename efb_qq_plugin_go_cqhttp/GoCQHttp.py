@@ -397,13 +397,13 @@ class GoCQHttp(BaseClient):
             context["group_id"] = str(context["group_id"]) + "_notification"
             context["message_type"] = "group"
             context["event_description"] = "\u2139 New Group Join Request"
-            original_group = self.get_group_info(context["group_id"], False)
+            original_group = self.get_group_info(context["group_id_orig"], False)
             group_name = context["group_id"]
             if original_group is not None and "group_name" in original_group:
                 group_name = original_group["group_name"]
             msg = Message()
             msg.uid = "group" + "_" + str(context["group_id"])
-            msg.author = self.chat_manager.build_efb_chat_as_system_user(context)
+            msg.author = (self.chat_manager.build_efb_chat_as_system_user(context)).other
             msg.chat = self.chat_manager.build_efb_chat_as_group(context)
             msg.deliver_to = coordinator.master
             msg.type = MsgType.Text

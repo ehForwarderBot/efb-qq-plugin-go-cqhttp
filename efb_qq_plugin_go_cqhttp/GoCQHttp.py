@@ -366,7 +366,7 @@ class GoCQHttp(BaseClient):
 
             efb_msg = Message(
                 chat=chat,
-                uid=MessageID([[f"{chat.uid.split('_')[-1]}_{coolq_msg_id}"]])
+                uid=MessageID(f"{chat.uid.split('_')[-1]}_{coolq_msg_id}")
             )
             coordinator.send_status(MessageRemoval(source_channel=self.channel,
                                                    destination_channel=coordinator.master,
@@ -382,7 +382,7 @@ class GoCQHttp(BaseClient):
                 return
             efb_msg = Message(
                 chat=chat,
-                uid=MessageID([[f"{chat.uid.split('_')[-1]}_{coolq_msg_id}"]])
+                uid=MessageID(f"{chat.uid.split('_')[-1]}_{coolq_msg_id}")
             )
             coordinator.send_status(MessageRemoval(source_channel=self.channel,
                                                    destination_channel=coordinator.master,

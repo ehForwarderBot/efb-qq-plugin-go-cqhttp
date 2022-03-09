@@ -17,6 +17,7 @@ from efb_qq_slave import BaseClient, QQMessengerChannel
 from ehforwarderbot import Chat, Message, MsgType, Status, coordinator
 from ehforwarderbot.chat import (
     ChatMember,
+    GroupChat,
     PrivateChat,
     SelfChatMember,
     SystemChatMember,
@@ -26,7 +27,6 @@ from ehforwarderbot.exceptions import (
     EFBMessageError,
     EFBOperationNotSupported,
 )
-from ehforwarderbot.chat import GroupChat
 from ehforwarderbot.message import MessageCommand, MessageCommands
 from ehforwarderbot.status import MessageRemoval
 from ehforwarderbot.types import ChatID, MessageID
@@ -68,18 +68,15 @@ class GoCQHttp(BaseClient):
         fallback=True,
     )
 
-    _ = translator.gettext
-    ngettext = translator.ngettext
-
-    friend_list = []
+    friend_list: List[Dict] = []
     friend_dict: Dict[int, dict] = {}
     stranger_dict: Dict[int, dict] = {}
-    group_list = []
+    group_list: List[Dict] = []
     group_dict: Dict[int, dict] = {}
     group_member_dict: Dict[int, Dict[str, Any]] = {}
     group_member_info_dict: Dict[Tuple[int, int], dict] = {}
-    discuss_list = []
-    extra_group_list = []
+    discuss_list: List[Dict] = []
+    extra_group_list: List[Dict] = []
     repeat_counter = 0
     update_repeat_counter = 0
     event = threading.Event()
@@ -106,7 +103,7 @@ class GoCQHttp(BaseClient):
         self.msg_decorator = QQMsgProcessor(instance=self)
 
         def forward_msgs_wrapper(msg_elements: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-            fmt_msgs = []
+            fmt_msgs: List[Dict] = []
             for msg in msg_elements:
                 from_user = self.get_user_info(msg["sender"]["user_id"])
                 header_text = {"data": {"text": f'{from_user["remark"]}（{from_user["nickname"]}）：\n'}, "type": "text"}
@@ -173,7 +170,8 @@ class GoCQHttp(BaseClient):
                 footer_msg = {"data": {"text": "合并转发消息结束"}, "type": "text"}
                 fmt_forward_msgs.insert(0, header_msg)
                 fmt_forward_msgs.append(footer_msg)
-                return message_elements_wrapper(context, fmt_forward_msgs, chat)
+                main_text, messages, _ = message_elements_wrapper(context, fmt_forward_msgs, chat)
+                return main_text, messages, []
             else:
                 messages.extend(self.call_msg_decorator(msg_type, msg_data, chat))
             return main_text, messages, at_list
@@ -215,7 +213,7 @@ class GoCQHttp(BaseClient):
             if "anonymous" not in context or context["anonymous"] is None:
                 if context["message_type"] == "group":
                     if context["sub_type"] == "notice":
-                        context["event_description"] = self._("System Notification")
+                        context["event_description"] = "System Notification"
                         context["uid_prefix"] = "group_notification"
                         author = chat.add_system_member(
                             name=context["event_description"],
@@ -242,8 +240,11 @@ class GoCQHttp(BaseClient):
                 if not isinstance(messages[i], Message):
                     continue
                 efb_msg: Message = messages[i]
-                efb_msg.uid = f"{chat.uid.split('_')[-1]}_{coolq_msg_id}_{i}" if i > 0 else \
-                    f"{chat.uid.split('_')[-1]}_{coolq_msg_id}"
+                efb_msg.uid = (
+                    f"{chat.uid.split('_')[-1]}_{coolq_msg_id}_{i}"
+                    if i > 0
+                    else f"{chat.uid.split('_')[-1]}_{coolq_msg_id}"
+                )
                 efb_msg.chat = chat
                 efb_msg.author = author
                 # if qq_uid != '80000000':
@@ -261,11 +262,11 @@ class GoCQHttp(BaseClient):
 
         @self.coolq_bot.on_notice("group_increase")
         def handle_group_increase_msg(context):
-            context["event_description"] = self._("\u2139 Group Member Increase Event")
+            context["event_description"] = "\u2139 Group Member Increase Event"
             if (context["sub_type"]) == "invite":
-                text = self._("{nickname}({context[user_id]}) joined the group({group_name}) via invitation")
+                text = "{nickname}({context[user_id]}) joined the group({group_name}) via invitation"
             else:
-                text = self._("{nickname}({context[user_id]}) joined the group({group_name})")
+                text = "{nickname}({context[user_id]}) joined the group({group_name})"
 
             original_group = self.get_group_info(context["group_id"], False)
             group_name = context["group_id"]
@@ -282,19 +283,19 @@ class GoCQHttp(BaseClient):
 
         @self.coolq_bot.on_notice("group_decrease")
         def handle_group_decrease_msg(context):
-            context["event_description"] = self._("\u2139 Group Member Decrease Event")
+            context["event_description"] = "\u2139 Group Member Decrease Event"
             original_group = self.get_group_info(context["group_id"], False)
             group_name = context["group_id"]
             if original_group is not None and "group_name" in original_group:
                 group_name = original_group["group_name"]
             text = ""
             if context["sub_type"] == "kick_me":
-                text = self._("You've been kicked from the group({})").format(group_name)
+                text = ("You've been kicked from the group({})").format(group_name)
             else:
                 if context["sub_type"] == "leave":
-                    text = self._("{nickname}({context[user_id]}) quited the group({group_name})")
+                    text = "{nickname}({context[user_id]}) quited the group({group_name})"
                 else:
-                    text = self._("{nickname}({context[user_id]}) was kicked from the group({group_name})")
+                    text = "{nickname}({context[user_id]}) was kicked from the group({group_name})"
                 text = text.format(
                     nickname=self.get_stranger_info(context["user_id"])["nickname"],
                     context=context,
@@ -305,11 +306,11 @@ class GoCQHttp(BaseClient):
 
         @self.coolq_bot.on_notice("offline_file")
         def handle_offline_file_upload_msg(context):
-            context["event_description"] = self._("\u2139 Offline File Upload Event")
+            context["event_description"] = "\u2139 Offline File Upload Event"
             context["uid_prefix"] = "offline_file"
-            file_info_msg = self._("Filename: {file[name]}\n" "File size: {file[size]}").format(file=context["file"])
+            file_info_msg = ("Filename: {file[name]}\n" "File size: {file[size]}").format(file=context["file"])
             user = self.get_user_info(context["user_id"])
-            text = self._("{remark}({nickname}) uploaded a file to you\n")
+            text = "{remark}({nickname}) uploaded a file to you\n"
             text = text.format(remark=user["remark"], nickname=user["nickname"]) + file_info_msg
             context["message"] = text
             self.send_msg_to_master(context)
@@ -321,19 +322,19 @@ class GoCQHttp(BaseClient):
 
         @self.coolq_bot.on_notice("group_upload")
         def handle_group_file_upload_msg(context):
-            context["event_description"] = self._("\u2139 Group File Upload Event")
+            context["event_description"] = "\u2139 Group File Upload Event"
             context["uid_prefix"] = "group_upload"
             original_group = self.get_group_info(context["group_id"], False)
             group_name = context["group_id"]
             if original_group is not None and "group_name" in original_group:
                 group_name = original_group["group_name"]
 
-            file_info_msg = self._("File ID: {file[id]}\n" "Filename: {file[name]}\n" "File size: {file[size]}").format(
+            file_info_msg = ("File ID: {file[id]}\n" "Filename: {file[name]}\n" "File size: {file[size]}").format(
                 file=context["file"]
             )
             member_info = self.get_user_info(context["user_id"], group_id=context["group_id"])["in_group_info"]
             group_card = member_info["card"] if member_info["card"] != "" else member_info["nickname"]
-            text = self._("{member_card}({context[user_id]}) uploaded a file to group({group_name})\n")
+            text = "{member_card}({context[user_id]}) uploaded a file to group({group_name})\n"
             text = text.format(member_card=group_card, context=context, group_name=group_name) + file_info_msg
             context["message"] = text
             self.send_efb_group_notice(context)
@@ -349,9 +350,9 @@ class GoCQHttp(BaseClient):
 
         @self.coolq_bot.on_notice("friend_add")
         def handle_friend_add_msg(context):
-            context["event_description"] = self._("\u2139 New Friend Event")
+            context["event_description"] = "\u2139 New Friend Event"
             context["uid_prefix"] = "friend_add"
-            text = self._("{nickname}({context[user_id]}) has become your friend!")
+            text = "{nickname}({context[user_id]}) has become your friend!"
             text = text.format(
                 nickname=self.get_stranger_info(context["user_id"])["nickname"],
                 context=context,
@@ -364,13 +365,10 @@ class GoCQHttp(BaseClient):
             coolq_msg_id = context["message_id"]
             chat = GroupChat(channel=self.channel, uid=f"group_{context['group_id']}")
 
-            efb_msg = Message(
-                chat=chat,
-                uid=MessageID(f"{chat.uid.split('_')[-1]}_{coolq_msg_id}")
+            efb_msg = Message(chat=chat, uid=MessageID(f"{chat.uid.split('_')[-1]}_{coolq_msg_id}"))
+            coordinator.send_status(
+                MessageRemoval(source_channel=self.channel, destination_channel=coordinator.master, message=efb_msg)
             )
-            coordinator.send_status(MessageRemoval(source_channel=self.channel,
-                                                   destination_channel=coordinator.master,
-                                                   message=efb_msg))
 
         @self.coolq_bot.on_notice("friend_recall")
         def handle_friend_recall_msg(context):
@@ -378,22 +376,19 @@ class GoCQHttp(BaseClient):
 
             try:
                 chat: PrivateChat = self.chat_manager.build_efb_chat_as_private(context)
-            except:
+            except Exception:
                 return
-            efb_msg = Message(
-                chat=chat,
-                uid=MessageID(f"{chat.uid.split('_')[-1]}_{coolq_msg_id}")
+            efb_msg = Message(chat=chat, uid=MessageID(f"{chat.uid.split('_')[-1]}_{coolq_msg_id}"))
+            coordinator.send_status(
+                MessageRemoval(source_channel=self.channel, destination_channel=coordinator.master, message=efb_msg)
             )
-            coordinator.send_status(MessageRemoval(source_channel=self.channel,
-                                                   destination_channel=coordinator.master,
-                                                   message=efb_msg))
 
         @self.coolq_bot.on_request("friend")  # Add friend request
         def handle_add_friend_request(context):
             self.logger.debug(repr(context))
-            context["event_description"] = self._("\u2139 New Friend Request")
+            context["event_description"] = "\u2139 New Friend Request"
             context["uid_prefix"] = "friend_request"
-            text = self._(
+            text = (
                 "{nickname}({context[user_id]}) wants to be your friend!\n"
                 "Here is the verification comment:\n"
                 "{context[comment]}"
@@ -405,12 +400,12 @@ class GoCQHttp(BaseClient):
             context["message"] = text
             commands = [
                 MessageCommand(
-                    name=self._("Accept"),
+                    name=("Accept"),
                     callable_name="process_friend_request",
                     kwargs={"result": "accept", "flag": context["flag"]},
                 ),
                 MessageCommand(
-                    name=self._("Decline"),
+                    name=("Decline"),
                     callable_name="process_friend_request",
                     kwargs={"result": "decline", "flag": context["flag"]},
                 ),
@@ -422,7 +417,7 @@ class GoCQHttp(BaseClient):
         def handle_group_request(context):
             self.logger.debug(repr(context))
             context["uid_prefix"] = "group_request"
-            context["group_name"] = self._("[Request]") + self.get_group_info(context["group_id"])["group_name"]
+            context["group_name"] = ("[Request]") + self.get_group_info(context["group_id"])["group_name"]
             context["group_id_orig"] = context["group_id"]
             context["group_id"] = str(context["group_id"]) + "_notification"
             context["message_type"] = "group"
@@ -455,7 +450,7 @@ class GoCQHttp(BaseClient):
             msg.commands = MessageCommands(
                 [
                     MessageCommand(
-                        name=self._("Accept"),
+                        name=("Accept"),
                         callable_name="process_group_request",
                         kwargs={
                             "result": "accept",
@@ -464,7 +459,7 @@ class GoCQHttp(BaseClient):
                         },
                     ),
                     MessageCommand(
-                        name=self._("Decline"),
+                        name=("Decline"),
                         callable_name="process_group_request",
                         kwargs={
                             "result": "decline",
@@ -493,8 +488,8 @@ class GoCQHttp(BaseClient):
         cherrypy.engine.wait(states.EXITING)
 
     @extra(
-        name=_("Restart CoolQ Client"),
-        desc=_(
+        name=("Restart CoolQ Client"),
+        desc=(
             "Force CoolQ to restart\n"
             "Usage: {function_name} [-l] [-c] [-e]\n"
             "    -l: Restart and clean log\n"
@@ -516,7 +511,7 @@ class GoCQHttp(BaseClient):
                 elif each_param == "-e":
                     param_dict["clean_event"] = "true"
                 else:
-                    return self._("Unknown parameter: {}.").format(param)
+                    return ("Unknown parameter: {}.").format(param)
         self.logger.debug(repr(param_dict))
         self.coolq_api_query("_set_restart", **param_dict)
         return "Done. Please wait for a while."
@@ -525,8 +520,8 @@ class GoCQHttp(BaseClient):
         raise NotImplementedError
 
     @extra(
-        name=_("Check CoolQ Status"),
-        desc=_("Force efb-qq-slave to refresh status from CoolQ Client.\n" "Usage: {function_name}"),
+        name=("Check CoolQ Status"),
+        desc=("Force efb-qq-slave to refresh status from CoolQ Client.\n" "Usage: {function_name}"),
     )
     def login(self, param: str = ""):
         self.check_status_periodically(None)
@@ -577,7 +572,7 @@ class GoCQHttp(BaseClient):
         try:
             self.update_friend_list()  # Force update friend list
         except CoolQAPIFailureException:
-            self.deliver_alert_to_master(self._("Failed to retrieve the friend list.\n" "Only groups are shown."))
+            self.deliver_alert_to_master(("Failed to retrieve the friend list.\n" "Only groups are shown."))
             return []
         users = []
         for current_user in self.friend_list:
@@ -616,7 +611,7 @@ class GoCQHttp(BaseClient):
                 self.recall_message(uid_type[1])
             except CoolQAPIFailureException:
                 raise EFBOperationNotSupported(
-                    self._("Failed to recall the message!\n" "This message may have already expired.")
+                    ("Failed to recall the message!\n" "This message may have already expired.")
                 )
 
         if msg.type in [MsgType.Text, MsgType.Link]:
@@ -646,7 +641,7 @@ class GoCQHttp(BaseClient):
             if not self.can_send_image:
                 self.check_features()  # Force checking features
                 raise EFBOperationNotSupported(
-                    self._("Unable to send image now. Please check your CoolQ version " "or retry later")
+                    ("Unable to send image now. Please check your CoolQ version " "or retry later")
                 )
             if msg.type != MsgType.Sticker:
                 text += m.coolq_code_image_wrapper(msg.file, msg.path)
@@ -673,7 +668,7 @@ class GoCQHttp(BaseClient):
             if not self.can_send_voice:
                 self.check_features()  # Force checking features
                 raise EFBOperationNotSupported(
-                    self._(
+                    (
                         "Unable to send voice now. Please check your CoolQ version "
                         " and install CoolQ audio library or retry later"
                     )
@@ -710,7 +705,7 @@ class GoCQHttp(BaseClient):
             try:
                 member_list = self.coolq_api_query("get_group_member_list", group_id=group_id, no_cache=no_cache)
             except CoolQAPIFailureException as e:
-                self.deliver_alert_to_master(self._("Failed the get group member detail.") + "{}".format(e))
+                self.deliver_alert_to_master(("Failed the get group member detail.") + "{}".format(e))
                 return []
             self.group_member_dict[group_id] = {
                 "members": member_list,
@@ -722,15 +717,19 @@ class GoCQHttp(BaseClient):
         user_id = int(user_id)
         if no_cache or (not self.friend_list) or (user_id not in self.friend_dict):
             self.update_friend_list()
-        friend = copy.deepcopy(self.friend_dict.get(user_id))
+        friend = self.friend_dict.get(user_id)
         if friend:
-            user = friend
+            user = copy.deepcopy(friend)
             user["is_friend"] = True
         else:
-            user = copy.deepcopy(self.stranger_dict.get(user_id))
-            if no_cache or (user is None):
-                user = self.coolq_api_query("get_stranger_info", user_id=user_id)
-                self.stranger_dict[user_id] = copy.deepcopy(user)
+            if no_cache:
+                stranger = self.coolq_api_query("get_stranger_info", user_id=user_id)
+                self.stranger_dict[user_id] = stranger
+            stranger = self.stranger_dict.get(user_id)
+            if stranger is None:
+                stranger = self.coolq_api_query("get_stranger_info", user_id=user_id)
+                self.stranger_dict[user_id] = stranger
+            user = copy.deepcopy(stranger)
             user["is_friend"] = False
         if group_id is not None:
             user["is_in_group"] = False
@@ -773,12 +772,10 @@ class GoCQHttp(BaseClient):
             func = getattr(self.coolq_bot, func_name)
             res = func(**kwargs)
         except RequestException as e:
-            raise CoolQDisconnectedException(
-                self._("Unable to connect to CoolQ Client!" "Error Message:\n{}").format(str(e))
-            )
+            raise CoolQDisconnectedException(("Unable to connect to CoolQ Client!" "Error Message:\n{}").format(str(e)))
         except cqhttp.Error as ex:
             api_ex = CoolQAPIFailureException(
-                self._("CoolQ HTTP API encountered an error!\n" "Status Code:{} " "Return Code:{}").format(
+                ("CoolQ HTTP API encountered an error!\n" "Status Code:{} " "Return Code:{}").format(
                     ex.status_code, ex.retcode
                 )
             )
@@ -793,9 +790,9 @@ class GoCQHttp(BaseClient):
         if res["good"] or res["online"]:
             return True
         else:
-            raise CoolQOfflineException(self._("CoolQ Client isn't working correctly!"))
+            raise CoolQOfflineException(("CoolQ Client isn't working correctly!"))
 
-    def coolq_api_query(self, func_name, **kwargs):
+    def coolq_api_query(self, func_name, **kwargs) -> Any:
         """# Do not call get_status too frequently
         if self.check_running_status():
             return self._coolq_api_wrapper(func_name, **kwargs)
@@ -803,7 +800,7 @@ class GoCQHttp(BaseClient):
         if self.is_logged_in and self.is_connected:
             return self._coolq_api_wrapper(func_name, **kwargs)
         elif self.repeat_counter < 3:
-            self.deliver_alert_to_master(self._("Your status is offline.\n" "You may try login with /0_login"))
+            self.deliver_alert_to_master(("Your status is offline.\n" "You may try login with /0_login"))
             self.repeat_counter += 1
 
     def check_status_periodically(self, t_event):
@@ -815,7 +812,7 @@ class GoCQHttp(BaseClient):
         except CoolQDisconnectedException as e:
             if self.repeat_counter < 3:
                 self.deliver_alert_to_master(
-                    self._(
+                    (
                         "We're unable to communicate with CoolQ Client.\n"
                         "Please check the connection and credentials provided.\n"
                         "{}"
@@ -828,7 +825,7 @@ class GoCQHttp(BaseClient):
         except (CoolQOfflineException, CoolQAPIFailureException):
             if self.repeat_counter < 3:
                 self.deliver_alert_to_master(
-                    self._(
+                    (
                         "CoolQ is running in abnormal status.\n"
                         "You may need to relogin your account "
                         "or have a check in CoolQ Client.\n"
@@ -842,7 +839,7 @@ class GoCQHttp(BaseClient):
             if not flag:
                 if self.repeat_counter < 3:
                     self.deliver_alert_to_master(
-                        self._(
+                        (
                             "We don't know why, but status check failed.\n"
                             "Please enable debug mode and consult the log "
                             "for more details."
@@ -866,7 +863,7 @@ class GoCQHttp(BaseClient):
         context = {
             "message": message,
             "uid_prefix": "alert",
-            "event_description": self._("CoolQ Alert"),
+            "event_description": ("CoolQ Alert"),
         }
         self.send_msg_to_master(context)
 
@@ -901,7 +898,7 @@ class GoCQHttp(BaseClient):
                 if (ex.status_code) == 200 and (ex.retcode) == 104 and self.update_repeat_counter < 3:
                     self.send_cookie_expired_alarm()
                 if self.update_repeat_counter < 3:
-                    self.deliver_alert_to_master(self._("Errors occurred when updating contacts: ") + (ex.message))
+                    self.deliver_alert_to_master(("Errors occurred when updating contacts: ") + (ex.message))
                     self.update_repeat_counter += 1
             else:
                 self.update_repeat_counter = 0
@@ -968,12 +965,12 @@ class GoCQHttp(BaseClient):
     def send_status(self, status: "Status"):
         if isinstance(status, MessageRemoval):
             if not isinstance(status.message.author, SelfChatMember):
-                raise EFBMessageError(self._("You can only recall your own messages."))
+                raise EFBMessageError(("You can only recall your own messages."))
             try:
                 uid_type = status.message.uid.split("_")
                 self.recall_message(uid_type[1])
             except CoolQAPIFailureException:
-                raise EFBMessageError(self._("Failed to recall the message. This message may have already expired."))
+                raise EFBMessageError(("Failed to recall the message. This message may have already expired."))
         else:
             raise EFBOperationNotSupported()
         # todo
@@ -983,7 +980,7 @@ class GoCQHttp(BaseClient):
 
     def send_cookie_expired_alarm(self):
         self.deliver_alert_to_master(
-            self._(
+            (
                 "Your cookie of CoolQ Client seems to be expired. "
                 "Although it will not affect the normal functioning of sending/receiving "
                 "messages, however, you may encounter issues like failing to retrieve "
@@ -998,7 +995,7 @@ class GoCQHttp(BaseClient):
         try:
             self.coolq_api_query("set_friend_add_request", approve=res, flag=flag)
         except CoolQAPIFailureException as e:
-            return self._("Failed to process request! Error Message:\n") + getattr(e, "message", repr(e))
+            return ("Failed to process request! Error Message:\n") + getattr(e, "message", repr(e))
         return "Done"
 
     def process_group_request(self, result, flag, sub_type):
@@ -1006,13 +1003,13 @@ class GoCQHttp(BaseClient):
         try:
             self.coolq_api_query("set_group_add_request", approve=res, flag=flag, sub_type=sub_type)
         except CoolQAPIFailureException as e:
-            return self._("Failed to process request! Error Message:\n") + getattr(e, "message", repr(e))
+            return ("Failed to process request! Error Message:\n") + getattr(e, "message", repr(e))
         return "Done"
 
     def async_download_file(self, context, download_url):
         res = download_file(download_url)
         if isinstance(res, str):
-            context["message"] = self._("[Download] ") + res
+            context["message"] = ("[Download] ") + res
             self.send_efb_group_notice(context)
         elif res is None:
             pass
@@ -1055,7 +1052,7 @@ class GoCQHttp(BaseClient):
         if chat_type[0] == "private":
             qq_uid = int(chat_type[1])
             remark = self.get_friend_remark(qq_uid)
-            context = {"user_id": qq_uid}
+            context: Dict[str, Any] = {"user_id": qq_uid}
             if remark is not None:
                 context["alias"] = remark
             return self.chat_manager.build_efb_chat_as_private(context)

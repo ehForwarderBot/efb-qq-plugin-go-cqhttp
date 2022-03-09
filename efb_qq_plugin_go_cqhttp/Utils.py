@@ -2,6 +2,7 @@ import logging
 import tempfile
 import urllib.request
 from gettext import translation
+from typing import IO, Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
 
 import pilk
@@ -648,7 +649,7 @@ _ = translator.gettext
 ngettext = translator.ngettext
 
 
-def cq_get_image(image_link: str) -> tempfile:  # Download image from QQ
+def cq_get_image(image_link: str) -> Optional[IO]:  # Download image from QQ
     file = tempfile.NamedTemporaryFile()
     try:
         urllib.request.urlretrieve(image_link, file.name)

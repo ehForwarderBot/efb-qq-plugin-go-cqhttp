@@ -56,7 +56,7 @@ build-backend = "pdm.pep517.api"
 version = { from = "efb_qq_plugin_go_cqhttp/__init__.py" }
 
 [tool.pdm.dev-dependencies]
-dev = ["pre-commit", "efb-telegram-master~=2.2.4"]
+dev = ["efb-telegram-master~=2.2.4"]
 
 [tool.black]
 line-length = 120

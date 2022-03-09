@@ -3,41 +3,44 @@ import html
 import json
 import logging
 import sys
+from typing import TYPE_CHECKING
 
 import magic
 from ehforwarderbot import Chat, Message, MsgType
 from ehforwarderbot.message import LinkAttribute, LocationAttribute, Substitutions
 
-from . import GoCQHttp
 from .Utils import cq_get_image, download_file, download_voice
+
+if TYPE_CHECKING:
+    from .GoCQHttp import GoCQHttp
 
 
 class QQMsgProcessor:
-    inst: GoCQHttp
+    inst: "GoCQHttp"
     logger: logging.Logger = logging.getLogger(__name__)
 
-    def __init__(self, instance: GoCQHttp):
+    def __init__(self, instance: "GoCQHttp"):
         self.inst = instance
-        self._ = instance._
         pass
 
     def qq_image_wrapper(self, data, chat: Chat = None):
         efb_msg = Message()
         if "url" not in data:
             efb_msg.type = MsgType.Text
-            efb_msg.text = self._("[Image Source missing]")
+            efb_msg.text = "[Image Source missing]"
             return [efb_msg]
 
         # flash picture
         if "flash" == data.get("type", ""):
-            data["url"] = f'https://gchat.qpic.cn/gchatpic_new/1/1-1-' \
-                          f'{data["file"].replace(".image", "").upper()}/0?term=3%27'
-            efb_msg.text = self._('Send a flash picture.')
+            data["url"] = (
+                f"https://gchat.qpic.cn/gchatpic_new/1/1-1-" f'{data["file"].replace(".image", "").upper()}/0?term=3%27'
+            )
+            efb_msg.text = "Send a flash picture."
 
         efb_msg.file = cq_get_image(data["url"])
         if efb_msg.file is None:
             efb_msg.type = MsgType.Text
-            efb_msg.text = self._("[Download image failed, please check on your QQ client]")
+            efb_msg.text = "[Download image failed, please check on your QQ client]"
             return [efb_msg]
 
         efb_msg.type = MsgType.Image
@@ -64,7 +67,7 @@ class QQMsgProcessor:
             efb_msg.mime = mime
         except Exception:
             efb_msg.type = MsgType.Unsupported
-            efb_msg.text = self._("[Voice Message] Please check it on your QQ")
+            efb_msg.text = "[Voice Message] Please check it on your QQ"
             logging.getLogger(__name__).exception("Failed to download voice")
         return [efb_msg]
 
@@ -90,7 +93,7 @@ class QQMsgProcessor:
         return [efb_msg]
 
     def qq_shake_wrapper(self, data, chat: Chat = None):
-        efb_msg = Message(type=MsgType.Text, text=self._("[Your friend shakes you!]"))
+        efb_msg = Message(type=MsgType.Text, text=("[Your friend shakes you!]"))
         return [efb_msg]
 
     def qq_contact_wrapper(self, data, chat: Chat = None):
@@ -98,14 +101,14 @@ class QQMsgProcessor:
         contact_type = data["type"]
         efb_msg = Message(
             type=MsgType.Text,
-            text=self._("Chat Recommendation Received\nID: {}\nType: {}").format(uid, contact_type),
+            text=("Chat Recommendation Received\nID: {}\nType: {}").format(uid, contact_type),
         )
         return [efb_msg]
 
     def qq_bface_wrapper(self, data, chat: Chat = None):
         efb_msg = Message(
             type=MsgType.Unsupported,
-            text=self._("[Here comes the BigFace Emoji, please check it on your phone]"),
+            text=("[Here comes the BigFace Emoji, please check it on your phone]"),
         )
         return [efb_msg]
 
@@ -114,11 +117,11 @@ class QQMsgProcessor:
         pass
 
     def qq_sign_wrapper(self, data, chat: Chat = None):
-        location = self._("at {}").format(data["location"]) if "location" in data else self._("at Unknown Place")
-        title = "" if "title" not in data else (self._("with title {}").format(data["title"]))
+        location = ("at {}").format(data["location"]) if "location" in data else ("at Unknown Place")
+        title = "" if "title" not in data else (("with title {}").format(data["title"]))
         efb_msg = Message(
             type=MsgType.Text,
-            text=self._("signed in {location} {title}").format(title=title, location=location),
+            text=("signed in {location} {title}").format(title=title, location=location),
         )
         return [efb_msg]
 
@@ -126,7 +129,7 @@ class QQMsgProcessor:
         efb_messages = list()
         efb_msg = Message(
             type=MsgType.Unsupported,
-            text=self._("[Here comes the Rich Text, dumping...] \n"),
+            text=("[Here comes the Rich Text, dumping...] \n"),
         )
         for key, value in data.items():
             efb_msg.text += key + ": " + value + "\n"
@@ -189,7 +192,7 @@ class QQMsgProcessor:
         efb_msg.filename = data["filename"]
         return efb_msg
 
-    def qq_group_broadcast_wrapper(self, data, chat: Chat = None):
+    def qq_group_broadcast_wrapper(self, data, chat: Chat):
         try:
             at_list = {}
             content_data = json.loads(data["content"])
@@ -215,9 +218,9 @@ class QQMsgProcessor:
             else:
                 return self.qq_text_simple_wrapper(text, at_list)
         except Exception:
-            return self.qq_group_broadcast_alternative_wrapper(data)
+            return self.qq_group_broadcast_alternative_wrapper(data, chat)
 
-    def qq_group_broadcast_alternative_wrapper(self, data, chat: Chat = None):
+    def qq_group_broadcast_alternative_wrapper(self, data, chat: Chat):
         try:
             at_list = {}
             content_data = json.loads(data["content"])

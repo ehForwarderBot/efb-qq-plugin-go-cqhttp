@@ -26,9 +26,10 @@ from ehforwarderbot.exceptions import (
     EFBMessageError,
     EFBOperationNotSupported,
 )
+from ehforwarderbot.chat import GroupChat
 from ehforwarderbot.message import MessageCommand, MessageCommands
 from ehforwarderbot.status import MessageRemoval
-from ehforwarderbot.types import ChatID
+from ehforwarderbot.types import ChatID, MessageID
 from ehforwarderbot.utils import extra
 from PIL import Image
 from pkg_resources import resource_filename
@@ -236,13 +237,13 @@ class GoCQHttp(BaseClient):
 
             if main_text != "":
                 messages.append(self.msg_decorator.qq_text_simple_wrapper(main_text, at_dict))
-            uid: str = str(uuid.uuid4())
             coolq_msg_id = context["message_id"]
             for i in range(len(messages)):
                 if not isinstance(messages[i], Message):
                     continue
                 efb_msg: Message = messages[i]
-                efb_msg.uid = uid + "_" + str(coolq_msg_id) + "_" + str(i)
+                efb_msg.uid = f"{chat.uid.split('_')[-1]}_{coolq_msg_id}_{i}" if i > 0 else \
+                    f"{chat.uid.split('_')[-1]}_{coolq_msg_id}"
                 efb_msg.chat = chat
                 efb_msg.author = author
                 # if qq_uid != '80000000':
@@ -357,6 +358,35 @@ class GoCQHttp(BaseClient):
             )
             context["message"] = text
             self.send_msg_to_master(context)
+
+        @self.coolq_bot.on_notice("group_recall")
+        def handle_group_recall_msg(context):
+            coolq_msg_id = context["message_id"]
+            chat = GroupChat(channel=self.channel, uid=f"group_{context['group_id']}")
+
+            efb_msg = Message(
+                chat=chat,
+                uid=MessageID(f"{chat.uid.split('_')[-1]}_{coolq_msg_id}")
+            )
+            coordinator.send_status(MessageRemoval(source_channel=self.channel,
+                                                   destination_channel=coordinator.master,
+                                                   message=efb_msg))
+
+        @self.coolq_bot.on_notice("friend_recall")
+        def handle_friend_recall_msg(context):
+            coolq_msg_id = context["message_id"]
+
+            try:
+                chat: PrivateChat = self.chat_manager.build_efb_chat_as_private(context)
+            except:
+                return
+            efb_msg = Message(
+                chat=chat,
+                uid=MessageID(f"{chat.uid.split('_')[-1]}_{coolq_msg_id}")
+            )
+            coordinator.send_status(MessageRemoval(source_channel=self.channel,
+                                                   destination_channel=coordinator.master,
+                                                   message=efb_msg))
 
         @self.coolq_bot.on_request("friend")  # Add friend request
         def handle_add_friend_request(context):
@@ -736,7 +766,7 @@ class GoCQHttp(BaseClient):
     def coolq_send_message(self, msg_type, uid, message):
         keyword = msg_type if msg_type != "private" else "user"
         res = self.coolq_api_query("send_msg", message_type=msg_type, **{keyword + "_id": uid}, message=message)
-        return str(uuid.uuid4()) + "_" + str(res["message_id"])
+        return str(uid) + "_" + str(res["message_id"])
 
     def _coolq_api_wrapper(self, func_name, **kwargs):
         try:

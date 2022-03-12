@@ -50,6 +50,7 @@ from .Utils import (
     download_user_avatar,
     process_quote_text,
     qq_emoji_list,
+    strf_time,
 )
 
 
@@ -301,6 +302,58 @@ class GoCQHttp(BaseClient):
                     context=context,
                     group_name=group_name,
                 )
+            context["message"] = text
+            self.send_efb_group_notice(context)
+
+        @self.coolq_bot.on_notice("group_admin")
+        def handle_group_admin_msg(context):
+            context["event_description"] = self._("\u2139 Group Admin Change Event")
+            if (context["sub_type"]) == "set":
+                text = self._("{nickname}({context[user_id]}) "
+                              "has been appointed as the group({group_name}) administrator")
+            else:
+                text = self._("{nickname}({context[user_id]}) "
+                              "has been de-appointed as the group({group_name}) administrator")
+
+            original_group = self.get_group_info(context["group_id"], False)
+            group_name = context["group_id"]
+            if original_group is not None and "group_name" in original_group:
+                group_name = original_group["group_name"]
+            text = text.format(
+                nickname=self.get_stranger_info(context["user_id"])["nickname"],
+                context=context,
+                group_name=group_name,
+            )
+
+            context["message"] = text
+            self.send_efb_group_notice(context)
+
+        @self.coolq_bot.on_notice("group_ban")
+        def handle_group_ban_msg(context):
+            context["event_description"] = self._("\u2139 Group Member Restrict Event")
+            if (context["sub_type"]) == "ban":
+                text = self._("{nickname}({context[user_id]}) "
+                              "is restricted for speaking for {time} at the group({group_name}) by "
+                              "{nickname_}({context[operator_id]})")
+                time_text = strf_time(context["duration"])
+            else:
+                text = self._("{nickname}({context[user_id]}) "
+                              "is lifted from restrictions at the group({group_name}) by "
+                              "{nickname_}({context[operator_id]}){time}")
+                time_text = ""
+
+            original_group = self.get_group_info(context["group_id"], False)
+            group_name = context["group_id"]
+            if original_group is not None and "group_name" in original_group:
+                group_name = original_group["group_name"]
+            text = text.format(
+                nickname=self.get_stranger_info(context["user_id"])["nickname"],
+                context=context,
+                time=time_text,
+                group_name=group_name,
+                nickname_=self.get_stranger_info(context["operator_id"])["nickname"],
+            )
+
             context["message"] = text
             self.send_efb_group_notice(context)
 
@@ -922,12 +975,13 @@ class GoCQHttp(BaseClient):
             author = chat.get_member(SystemChatMember.SYSTEM_ID)
         except KeyError:
             author = chat.add_system_member()
+        event_description = context.get("event_description", "")
         msg = Message(
             uid="__group_notice__.%s" % int(time.time()),
             type=MsgType.Text,
             chat=chat,
             author=author,
-            text=context["message"],
+            text=(event_description + "\n\n" + context["message"]) if event_description else context["message"],
             deliver_to=coordinator.master,
         )
         coordinator.send_message(msg)

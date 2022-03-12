@@ -784,3 +784,15 @@ def download_voice(voice_url: str):
     else:
         audio_file = origin_file
     return audio_file
+
+
+def strf_time(seconds: int) -> str:
+    minutes, seconds = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    days, hours = divmod(hours, 24)
+    text = ""
+    text += f"{days}d" if days else ""
+    text += f"{hours}h" if hours else ""
+    text += f"{minutes}m" if minutes else ""
+    text += f"{seconds}s" if seconds else ""
+    return text

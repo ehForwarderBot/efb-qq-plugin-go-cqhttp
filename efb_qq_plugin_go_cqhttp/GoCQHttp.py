@@ -307,15 +307,11 @@ class GoCQHttp(BaseClient):
 
         @self.coolq_bot.on_notice("group_admin")
         def handle_group_admin_msg(context):
-            context["event_description"] = self._("\u2139 Group Admin Change Event")
+            context["event_description"] = "\u2139 Group Admin Change Event"
             if (context["sub_type"]) == "set":
-                text = self._(
-                    "{nickname}({context[user_id]}) " "has been appointed as the group({group_name}) administrator"
-                )
+                text = "{nickname}({context[user_id]}) has been appointed as the group({group_name}) administrator"
             else:
-                text = self._(
-                    "{nickname}({context[user_id]}) " "has been de-appointed as the group({group_name}) administrator"
-                )
+                text = "{nickname}({context[user_id]}) has been de-appointed as the group({group_name}) administrator"
 
             original_group = self.get_group_info(context["group_id"], False)
             group_name = context["group_id"]
@@ -332,16 +328,16 @@ class GoCQHttp(BaseClient):
 
         @self.coolq_bot.on_notice("group_ban")
         def handle_group_ban_msg(context):
-            context["event_description"] = self._("\u2139 Group Member Restrict Event")
+            context["event_description"] = "\u2139 Group Member Restrict Event"
             if (context["sub_type"]) == "ban":
-                text = self._(
+                text = (
                     "{nickname}({context[user_id]}) "
                     "is restricted for speaking for {time} at the group({group_name}) by "
                     "{nickname_}({context[operator_id]})"
                 )
                 time_text = strf_time(context["duration"])
             else:
-                text = self._(
+                text = (
                     "{nickname}({context[user_id]}) "
                     "is lifted from restrictions at the group({group_name}) by "
                     "{nickname_}({context[operator_id]}){time}"

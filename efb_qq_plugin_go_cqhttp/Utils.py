@@ -1,14 +1,12 @@
 import logging
 import tempfile
 import urllib.request
-from gettext import translation
 from typing import IO, Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
 
 import pilk
 import pydub
 from ehforwarderbot import Message, coordinator
-from pkg_resources import resource_filename
 
 # created by JogleLew and jqqqqqqqqqq, optimized based on Tim's emoji support, updated by xzsk2 to mobileqq v8.8.11
 qq_emoji_list = {
@@ -640,13 +638,6 @@ qq_sface_list = {
     39: "[赞]",
     40: "[眨眼]",
 }
-translator = translation(
-    "efb_qq_slave",
-    resource_filename("efb_qq_slave", "Clients/CoolQ/locale"),
-    fallback=True,
-)
-_ = translator.gettext
-ngettext = translator.ngettext
 
 
 def cq_get_image(image_link: str) -> Optional[IO]:  # Download image from QQ
@@ -715,7 +706,7 @@ def download_file(download_url):
         urllib.request.urlretrieve(download_url, file.name)
     except (URLError, HTTPError, ContentTooShortError) as e:
         logging.getLogger(__name__).warning("Error occurs when downloading files: " + str(e))
-        return _("Error occurs when downloading files: ") + str(e)
+        return ("Error occurs when downloading files: ") + str(e)
     else:
         if file.seek(0, 2) <= 0:
             raise EOFError("File downloaded is Empty")
@@ -732,7 +723,7 @@ def download_user_avatar(uid: str):
         urllib.request.urlretrieve(url, file.name)
     except (URLError, HTTPError, ContentTooShortError) as e:
         logging.getLogger(__name__).warning("Error occurs when downloading files: " + str(e))
-        return _("Error occurs when downloading files: ") + str(e)
+        return ("Error occurs when downloading files: ") + str(e)
     if file.seek(0, 2) <= 0:
         raise EOFError("File downloaded is Empty")
     file.seek(0)
@@ -748,7 +739,7 @@ def download_group_avatar(uid: str):
         urllib.request.urlretrieve(url, file.name)
     except (URLError, HTTPError, ContentTooShortError) as e:
         logging.getLogger(__name__).warning("Error occurs when downloading files: " + str(e))
-        return _("Error occurs when downloading files: ") + str(e)
+        return ("Error occurs when downloading files: ") + str(e)
     if file.seek(0, 2) <= 0:
         raise EOFError("File downloaded is Empty")
     file.seek(0)

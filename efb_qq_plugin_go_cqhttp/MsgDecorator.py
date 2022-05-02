@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import html
 import json
@@ -218,14 +219,14 @@ class QQMsgProcessor:
             else:
                 return self.qq_text_simple_wrapper(text, at_list)
         except Exception:
-            return self.qq_group_broadcast_alternative_wrapper(data, chat)
+            return asyncio.run(self.qq_group_broadcast_alternative_wrapper(data, chat))
 
-    def qq_group_broadcast_alternative_wrapper(self, data, chat: Chat):
+    async def qq_group_broadcast_alternative_wrapper(self, data, chat: Chat):
         try:
             at_list = {}
             content_data = json.loads(data["content"])
             group_id = content_data["mannounce"]["gc"]
-            notice_raw_data = self.inst.coolq_api_query("_get_group_notice", group_id=group_id)
+            notice_raw_data = await self.inst.coolq_api_query("_get_group_notice", group_id=group_id)
             notice_data = json.loads(notice_raw_data)
             title_data = html.unescape(notice_data[0]["msg"]["title"])
             text_data = html.unescape(notice_data[0]["msg"]["text"])

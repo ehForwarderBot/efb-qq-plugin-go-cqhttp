@@ -137,7 +137,7 @@ class GoCQHttp(BaseClient):
                 if str(msg_data["qq"]) == "all":
                     group_card = "all"
                 else:
-                    member_info = await self.get_user_info(msg_data["qq"], group_id=g_id)["in_group_info"]
+                    member_info = (await self.get_user_info(msg_data["qq"], group_id=g_id))["in_group_info"]
                     group_card = member_info["card"] if member_info["card"] != "" else member_info["nickname"]
                 self.logger.debug("Group card: {}".format(group_card))
                 substitution_begin = len(main_text)
@@ -153,7 +153,7 @@ class GoCQHttp(BaseClient):
                     "- - - - - - - - - - - - - - -\n"
                 )
             elif msg_type == "forward":
-                forward_msgs = await self.coolq_api_query("get_forward_msg", message_id=msg_data["id"])["messages"]
+                forward_msgs = (await self.coolq_api_query("get_forward_msg", message_id=msg_data["id"]))["messages"]
                 logging.debug(f"Forwarded message: {forward_msgs}")
                 fmt_forward_msgs = await forward_msgs_wrapper(forward_msgs)
                 logging.debug(f"Formated forwarded message: {forward_msgs}")
@@ -264,7 +264,7 @@ class GoCQHttp(BaseClient):
             if original_group is not None and "group_name" in original_group:
                 group_name = original_group["group_name"]
             text = text.format(
-                nickname=await self.get_stranger_info(context["user_id"])["nickname"],
+                nickname=(await self.get_stranger_info(context["user_id"]))["nickname"],
                 context=context,
                 group_name=group_name,
             )
@@ -288,7 +288,7 @@ class GoCQHttp(BaseClient):
                 else:
                     text = "{nickname}({context[user_id]}) was kicked from the group({group_name})"
                 text = text.format(
-                    nickname=await self.get_stranger_info(context["user_id"])["nickname"],
+                    nickname=(await self.get_stranger_info(context["user_id"]))["nickname"],
                     context=context,
                     group_name=group_name,
                 )
@@ -308,7 +308,7 @@ class GoCQHttp(BaseClient):
             if original_group is not None and "group_name" in original_group:
                 group_name = original_group["group_name"]
             text = text.format(
-                nickname=await self.get_stranger_info(context["user_id"])["nickname"],
+                nickname=(await self.get_stranger_info(context["user_id"]))["nickname"],
                 context=context,
                 group_name=group_name,
             )
@@ -339,11 +339,11 @@ class GoCQHttp(BaseClient):
             if original_group is not None and "group_name" in original_group:
                 group_name = original_group["group_name"]
             text = text.format(
-                nickname=await self.get_stranger_info(context["user_id"])["nickname"],
+                nickname=(await self.get_stranger_info(context["user_id"]))["nickname"],
                 context=context,
                 time=time_text,
                 group_name=group_name,
-                nickname_=await self.get_stranger_info(context["operator_id"])["nickname"],
+                nickname_=(await self.get_stranger_info(context["operator_id"]))["nickname"],
             )
 
             context["message"] = text
@@ -377,7 +377,7 @@ class GoCQHttp(BaseClient):
             file_info_msg = ("File ID: {file[id]}\n" "Filename: {file[name]}\n" "File size: {file[size]}").format(
                 file=context["file"]
             )
-            member_info = await self.get_user_info(context["user_id"], group_id=context["group_id"])["in_group_info"]
+            member_info = (await self.get_user_info(context["user_id"], group_id=context["group_id"]))["in_group_info"]
             group_card = member_info["card"] if member_info["card"] != "" else member_info["nickname"]
             text = "{member_card}({context[user_id]}) uploaded a file to group({group_name})\n"
             text = text.format(member_card=group_card, context=context, group_name=group_name) + file_info_msg
@@ -399,7 +399,7 @@ class GoCQHttp(BaseClient):
             context["uid_prefix"] = "friend_add"
             text = "{nickname}({context[user_id]}) has become your friend!"
             text = text.format(
-                nickname=await self.get_stranger_info(context["user_id"])["nickname"],
+                nickname=(await self.get_stranger_info(context["user_id"]))["nickname"],
                 context=context,
             )
             context["message"] = text
@@ -439,7 +439,7 @@ class GoCQHttp(BaseClient):
                 "{context[comment]}"
             )
             text = text.format(
-                nickname=await self.get_stranger_info(context["user_id"])["nickname"],
+                nickname=(await self.get_stranger_info(context["user_id"]))["nickname"],
                 context=context,
             )
             context["message"] = text
@@ -462,7 +462,7 @@ class GoCQHttp(BaseClient):
         async def handle_group_request(context: Event):
             self.logger.debug(repr(context))
             context["uid_prefix"] = "group_request"
-            context["group_name"] = ("[Request]") + await self.get_group_info(context["group_id"])["group_name"]
+            context["group_name"] = ("[Request]") + (await self.get_group_info(context["group_id"]))["group_name"]
             context["group_id_orig"] = context["group_id"]
             context["group_id"] = str(context["group_id"]) + "_notification"
             context["message_type"] = "group"
@@ -480,13 +480,13 @@ class GoCQHttp(BaseClient):
             name = ""
             if not await self.get_friend_remark(context["user_id"]):
                 name = "{}({})[{}] ".format(
-                    await self.get_stranger_info(context["user_id"])["nickname"],
+                    (await self.get_stranger_info(context["user_id"]))["nickname"],
                     await self.get_friend_remark(context["user_id"]),
                     context["user_id"],
                 )
             else:
                 name = "{}[{}] ".format(
-                    await self.get_stranger_info(context["user_id"])["nickname"],
+                    (await self.get_stranger_info(context["user_id"]))["nickname"],
                     context["user_id"],
                 )
             msg.text = "{} wants to join the group {}({}). \nHere is the comment: {}".format(

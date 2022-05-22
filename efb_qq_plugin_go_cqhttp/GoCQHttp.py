@@ -213,7 +213,10 @@ class GoCQHttp(BaseClient):
                     else:
                         user = await self.get_user_info(qq_uid, group_id=context["group_id"])
                         context["nickname"] = user["remark"]
-                        context["alias"] = user["in_group_info"]["card"]
+                        if user["is_in_group"]:
+                            context["alias"] = user["in_group_info"]["card"]
+                        else:
+                            context["nickname"] = user["remark"]
                         author = await self.chat_manager.build_or_get_efb_member(chat, context)
                 elif context["message_type"] == "private":
                     author = chat.other
@@ -747,11 +750,20 @@ class GoCQHttp(BaseClient):
             user["is_friend"] = False
         if group_id is not None:
             user["is_in_group"] = False
-            for member in await self.get_group_member_list(group_id):
-                if member["user_id"] == user_id:
-                    user["is_in_group"] = True
-                    user["in_group_info"] = member
-                    break
+            member = next(
+                filter(lambda member: member["user_id"] == user_id, await self.get_group_member_list(group_id)), None
+            )
+            if member is None:
+                member = next(
+                    filter(
+                        lambda member: member["user_id"] == user_id,
+                        await self.get_group_member_list(group_id, no_cache=True),
+                    ),
+                    None,
+                )
+            if member is not None:
+                user["is_in_group"] = True
+                user["in_group_info"] = member
         remark = user.get("remark")
         if not remark:
             user["remark"] = user["nickname"]

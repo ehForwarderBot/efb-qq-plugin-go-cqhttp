@@ -217,7 +217,7 @@ class GoCQHttp(BaseClient):
                         if user["is_in_group"]:
                             context["alias"] = user["in_group_info"]["card"]
                         else:
-                            context["nickname"] = user["remark"]
+                            context["alias"] = user["remark"]
                         author = await self.chat_manager.build_or_get_efb_member(chat, context)
                 elif context["message_type"] == "private":
                     author = chat.other

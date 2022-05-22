@@ -1,5 +1,6 @@
 import asyncio
 import copy
+import functools
 import logging
 import tempfile
 import threading
@@ -273,7 +274,7 @@ class GoCQHttp(BaseClient):
             )
 
             context["message"] = text
-            self.send_efb_group_notice(context)
+            await self.send_efb_group_notice(context)
 
         @self.coolq_bot.on_notice("group_decrease")
         async def handle_group_decrease_msg(context: Event):
@@ -296,7 +297,7 @@ class GoCQHttp(BaseClient):
                     group_name=group_name,
                 )
             context["message"] = text
-            self.send_efb_group_notice(context)
+            await self.send_efb_group_notice(context)
 
         @self.coolq_bot.on_notice("group_admin")
         async def handle_group_admin_msg(context: Event):
@@ -317,7 +318,7 @@ class GoCQHttp(BaseClient):
             )
 
             context["message"] = text
-            self.send_efb_group_notice(context)
+            await self.send_efb_group_notice(context)
 
         @self.coolq_bot.on_notice("group_ban")
         async def handle_group_ban_msg(context: Event):
@@ -350,7 +351,7 @@ class GoCQHttp(BaseClient):
             )
 
             context["message"] = text
-            self.send_efb_group_notice(context)
+            await self.send_efb_group_notice(context)
 
         @self.coolq_bot.on_notice("offline_file")
         async def handle_offline_file_upload_msg(context: Event):
@@ -366,7 +367,7 @@ class GoCQHttp(BaseClient):
                 "context": context,
                 "download_url": context["file"]["url"],
             }
-            threading.Thread(target=self.async_download_file, args=[], kwargs=param_dict).start()
+            self.loop.run_in_executor(None, functools.partial(self.async_download_file, **param_dict))
 
         @self.coolq_bot.on_notice("group_upload")
         async def handle_group_file_upload_msg(context: Event):
@@ -385,7 +386,7 @@ class GoCQHttp(BaseClient):
             text = "{member_card}({context[user_id]}) uploaded a file to group({group_name})\n"
             text = text.format(member_card=group_card, context=context, group_name=group_name) + file_info_msg
             context["message"] = text
-            self.send_efb_group_notice(context)
+            await self.send_efb_group_notice(context)
 
             param_dict = {
                 "context": context,
@@ -940,10 +941,10 @@ class GoCQHttp(BaseClient):
             return None  # I don't think you have such a friend
         return self.friend_dict[uid]["remark"]
 
-    def send_efb_group_notice(self, context):
+    async def send_efb_group_notice(self, context):
         context["message_type"] = "group"
         self.logger.debug(repr(context))
-        chat = asyncio.run(self.chat_manager.build_efb_chat_as_group(context))
+        chat = await self.chat_manager.build_efb_chat_as_group(context)
         try:
             author = chat.get_member(SystemChatMember.SYSTEM_ID)
         except KeyError:
@@ -1033,11 +1034,11 @@ class GoCQHttp(BaseClient):
             return ("Failed to process request! Error Message:\n") + getattr(e, "message", repr(e))
         return "Done"
 
-    def async_download_file(self, context, download_url):
+    async def async_download_file(self, context, download_url):
         res = download_file(download_url)
         if isinstance(res, str):
             context["message"] = ("[Download] ") + res
-            self.send_efb_group_notice(context)
+            await self.send_efb_group_notice(context)
         elif res is None:
             pass
         else:
@@ -1057,7 +1058,7 @@ class GoCQHttp(BaseClient):
     async def async_download_group_file(self, context, group_id, file_id, busid):
         file = await self.coolq_api_query("get_group_file_url", group_id=group_id, file_id=file_id, busid=busid)
         download_url = file["url"]
-        self.async_download_file(context, download_url)
+        await self.async_download_file(context, download_url)
 
     def get_chat_picture(self, chat: "Chat") -> BinaryIO:
         chat_type = chat.uid.split("_")

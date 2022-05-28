@@ -1,6 +1,5 @@
 import asyncio
 import copy
-import functools
 import logging
 import tempfile
 import threading
@@ -189,71 +188,70 @@ class GoCQHttp(BaseClient):
 
         @self.coolq_bot.on_message
         async def handle_msg(context: Event):
-            self.logger.debug(repr(context))
-            msg_elements = context["message"]
-            qq_uid = context["user_id"]
-            chat: Chat
-            author: ChatMember
+            async def _handle_msg():
+                self.logger.debug(repr(context))
+                msg_elements = context["message"]
+                qq_uid = context["user_id"]
+                chat: Chat
+                author: ChatMember
 
-            user = await self.get_user_info(qq_uid)
-            if context["message_type"] == "private":
-                context["alias"] = user["remark"]
-                chat: PrivateChat = await self.chat_manager.build_efb_chat_as_private(context)
-            else:
-                chat = await self.chat_manager.build_efb_chat_as_group(context)
-
-            if "anonymous" not in context or context["anonymous"] is None:
-                if context["message_type"] == "group":
-                    if context["sub_type"] == "notice":
-                        context["event_description"] = "System Notification"
-                        context["uid_prefix"] = "group_notification"
-                        author = chat.add_system_member(
-                            name=context["event_description"],
-                            uid=ChatID("__{context[uid_prefix]}__".format(context=context)),
-                        )
-                    else:
-                        user = await self.get_user_info(qq_uid, group_id=context["group_id"])
-                        context["nickname"] = user["remark"]
-                        if user["is_in_group"]:
-                            context["alias"] = user["in_group_info"]["card"]
-                        else:
-                            context["alias"] = user["remark"]
-                        author = await self.chat_manager.build_or_get_efb_member(chat, context)
-                elif context["message_type"] == "private":
-                    author = chat.other
+                user = await self.get_user_info(qq_uid)
+                if context["message_type"] == "private":
+                    context["alias"] = user["remark"]
+                    chat: PrivateChat = await self.chat_manager.build_efb_chat_as_private(context)
                 else:
-                    author = await self.chat_manager.build_or_get_efb_member(chat, context)
-            else:  # anonymous user in group
-                author = self.chat_manager.build_efb_chat_as_anonymous_user(chat, context)
+                    chat = await self.chat_manager.build_efb_chat_as_group(context)
 
-            main_text, messages, at_dict = await message_elements_wrapper(context, msg_elements, chat)
+                if "anonymous" not in context or context["anonymous"] is None:
+                    if context["message_type"] == "group":
+                        if context["sub_type"] == "notice":
+                            context["event_description"] = "System Notification"
+                            context["uid_prefix"] = "group_notification"
+                            author = chat.add_system_member(
+                                name=context["event_description"],
+                                uid=ChatID("__{context[uid_prefix]}__".format(context=context)),
+                            )
+                        else:
+                            user = await self.get_user_info(qq_uid, group_id=context["group_id"])
+                            context["nickname"] = user["remark"]
+                            if user["is_in_group"]:
+                                context["alias"] = user["in_group_info"]["card"]
+                            else:
+                                context["alias"] = user["remark"]
+                            author = await self.chat_manager.build_or_get_efb_member(chat, context)
+                    elif context["message_type"] == "private":
+                        author = chat.other
+                    else:
+                        author = await self.chat_manager.build_or_get_efb_member(chat, context)
+                else:  # anonymous user in group
+                    author = self.chat_manager.build_efb_chat_as_anonymous_user(chat, context)
 
-            if main_text != "":
-                messages.append(self.msg_decorator.qq_text_simple_wrapper(main_text, at_dict))
-            coolq_msg_id = context["message_id"]
-            for i in range(len(messages)):
-                if not isinstance(messages[i], Message):
-                    continue
-                efb_msg: Message = messages[i]
-                efb_msg.uid = (
-                    f"{chat.uid.split('_')[-1]}_{coolq_msg_id}_{i}"
-                    if i > 0
-                    else f"{chat.uid.split('_')[-1]}_{coolq_msg_id}"
-                )
-                efb_msg.chat = chat
-                efb_msg.author = author
-                # if qq_uid != '80000000':
+                main_text, messages, at_dict = await message_elements_wrapper(context, msg_elements, chat)
 
-                # Append discuss group into group list
-                if context["message_type"] == "discuss" and efb_msg.chat not in self.discuss_list:
-                    self.discuss_list.append(efb_msg.chat)
+                if main_text != "":
+                    messages.append(self.msg_decorator.qq_text_simple_wrapper(main_text, at_dict))
+                coolq_msg_id = context["message_id"]
+                for i in range(len(messages)):
+                    if not isinstance(messages[i], Message):
+                        continue
+                    efb_msg: Message = messages[i]
+                    efb_msg.uid = (
+                        f"{chat.uid.split('_')[-1]}_{coolq_msg_id}_{i}"
+                        if i > 0
+                        else f"{chat.uid.split('_')[-1]}_{coolq_msg_id}"
+                    )
+                    efb_msg.chat = chat
+                    efb_msg.author = author
+                    # if qq_uid != '80000000':
 
-                efb_msg.deliver_to = coordinator.master
+                    # Append discuss group into group list
+                    if context["message_type"] == "discuss" and efb_msg.chat not in self.discuss_list:
+                        self.discuss_list.append(efb_msg.chat)
 
-                def send_message_wrapper(*args, **kwargs):
-                    threading.Thread(target=async_send_messages_to_master, args=args, kwargs=kwargs).start()
+                    efb_msg.deliver_to = coordinator.master
+                    async_send_messages_to_master(efb_msg)
 
-                send_message_wrapper(efb_msg)
+            asyncio.create_task(_handle_msg())
 
         @self.coolq_bot.on_notice("group_increase")
         async def handle_group_increase_msg(context: Event):
@@ -355,47 +353,54 @@ class GoCQHttp(BaseClient):
 
         @self.coolq_bot.on_notice("offline_file")
         async def handle_offline_file_upload_msg(context: Event):
-            context["event_description"] = "\u2139 Offline File Upload Event"
-            context["uid_prefix"] = "offline_file"
-            file_info_msg = ("Filename: {file[name]}\n" "File size: {file[size]}").format(file=context["file"])
-            user = await self.get_user_info(context["user_id"])
-            text = "{remark}({nickname}) uploaded a file to you\n"
-            text = text.format(remark=user["remark"], nickname=user["nickname"]) + file_info_msg
-            context["message"] = text
-            self.send_msg_to_master(context)
-            param_dict = {
-                "context": context,
-                "download_url": context["file"]["url"],
-            }
-            self.loop.run_in_executor(None, functools.partial(self.async_download_file, **param_dict))
+            async def _handle_offline_file_upload_msg():
+                context["event_description"] = "\u2139 Offline File Upload Event"
+                context["uid_prefix"] = "offline_file"
+                file_info_msg = ("Filename: {file[name]}\n" "File size: {file[size]}").format(file=context["file"])
+                user = await self.get_user_info(context["user_id"])
+                text = "{remark}({nickname}) uploaded a file to you\n"
+                text = text.format(remark=user["remark"], nickname=user["nickname"]) + file_info_msg
+                context["message"] = text
+                self.send_msg_to_master(context)
+                param_dict = {
+                    "context": context,
+                    "download_url": context["file"]["url"],
+                }
+                self.async_download_file(**param_dict)
+
+            asyncio.create_task(_handle_offline_file_upload_msg())
 
         @self.coolq_bot.on_notice("group_upload")
         async def handle_group_file_upload_msg(context: Event):
-            context["event_description"] = "\u2139 Group File Upload Event"
-            context["uid_prefix"] = "group_upload"
-            original_group = await self.get_group_info(context["group_id"], False)
-            group_name = context["group_id"]
-            if original_group is not None and "group_name" in original_group:
-                group_name = original_group["group_name"]
+            async def _handle_group_file_upload_msg():
+                context["event_description"] = "\u2139 Group File Upload Event"
+                context["uid_prefix"] = "group_upload"
+                original_group = await self.get_group_info(context["group_id"], False)
+                group_name = context["group_id"]
+                if original_group is not None and "group_name" in original_group:
+                    group_name = original_group["group_name"]
 
-            file_info_msg = ("File ID: {file[id]}\n" "Filename: {file[name]}\n" "File size: {file[size]}").format(
-                file=context["file"]
-            )
-            member_info = (await self.get_user_info(context["user_id"], group_id=context["group_id"]))["in_group_info"]
-            group_card = member_info["card"] if member_info["card"] != "" else member_info["nickname"]
-            text = "{member_card}({context[user_id]}) uploaded a file to group({group_name})\n"
-            text = text.format(member_card=group_card, context=context, group_name=group_name) + file_info_msg
-            context["message"] = text
-            await self.send_efb_group_notice(context)
+                file_info_msg = ("File ID: {file[id]}\n" "Filename: {file[name]}\n" "File size: {file[size]}").format(
+                    file=context["file"]
+                )
+                member_info = (await self.get_user_info(context["user_id"], group_id=context["group_id"]))[
+                    "in_group_info"
+                ]
+                group_card = member_info["card"] if member_info["card"] != "" else member_info["nickname"]
+                text = "{member_card}({context[user_id]}) uploaded a file to group({group_name})\n"
+                text = text.format(member_card=group_card, context=context, group_name=group_name) + file_info_msg
+                context["message"] = text
+                await self.send_efb_group_notice(context)
 
-            param_dict = {
-                "context": context,
-                "group_id": context["group_id"],
-                "file_id": context["file"]["id"],
-                "busid": context["file"]["busid"],
-            }
+                param_dict = {
+                    "context": context,
+                    "group_id": context["group_id"],
+                    "file_id": context["file"]["id"],
+                    "busid": context["file"]["busid"],
+                }
+                self.async_download_group_file(**param_dict)
 
-            threading.Thread(target=self.async_download_group_file, args=[], kwargs=param_dict).start()
+            asyncio.create_task(_handle_group_file_upload_msg())
 
         @self.coolq_bot.on_notice("friend_add")
         async def handle_friend_add_msg(context: Event):

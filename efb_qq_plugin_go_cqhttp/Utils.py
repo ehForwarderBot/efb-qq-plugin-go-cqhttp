@@ -1,7 +1,6 @@
 import logging
 import tempfile
 from typing import IO, Optional
-from urllib.error import ContentTooShortError, HTTPError, URLError
 
 import pilk
 import pydub
@@ -645,23 +644,25 @@ qq_sface_list = {
 def cq_get_image(image_link: str) -> Optional[IO]:  # Download image from QQ
     try:
         resp = requests.get(image_link)
-    except (URLError, HTTPError, ContentTooShortError) as e:
-        logger.warning("Image download failed.")
-        logger.warning(str(e))
-        return None
-    else:
         file = tempfile.NamedTemporaryFile()
         file.write(resp.content)
         if file.seek(0, 2) <= 0:
             raise EOFError("File downloaded is Empty")
         file.seek(0)
-        return file
+    except Exception as e:
+        file.close()
+        logger.warning("File download failed.")
+        logger.warning(str(e))
+        return None
+    return file
 
 
 def async_send_messages_to_master(msg: Message):
-    coordinator.send_message(msg)
-    if msg.file:
-        msg.file.close()
+    try:
+        coordinator.send_message(msg)
+    finally:
+        if msg.file:
+            msg.file.close()
 
 
 def process_quote_text(text, max_length):  # Simple wrapper for processing quoted text
@@ -704,61 +705,56 @@ def param_spliter(str_param):
 def download_file(download_url):
     try:
         resp = requests.get(download_url)
-    except (URLError, HTTPError, ContentTooShortError) as e:
-        logger.warning("Error occurs when downloading files: " + str(e))
-        return ("Error occurs when downloading files: ") + str(e)
-    else:
         file = tempfile.NamedTemporaryFile()
         file.write(resp.content)
         if file.seek(0, 2) <= 0:
             raise EOFError("File downloaded is Empty")
         file.seek(0)
-        return file
+    except Exception as e:
+        file.close()
+        logger.warning("Error occurs when downloading files: " + str(e))
+        return ("Error occurs when downloading files: ") + str(e)
+    return file
 
 
 def download_user_avatar(uid: str):
     url = "https://q1.qlogo.cn/g?b=qq&nk={}&s=0".format(uid)
     try:
         resp = requests.get(url)
-    except (URLError, HTTPError, ContentTooShortError) as e:
-        logger.warning("Error occurs when downloading files: " + str(e))
-        return ("Error occurs when downloading files: ") + str(e)
-    else:
         file = tempfile.NamedTemporaryFile()
         file.write(resp.content)
         if file.seek(0, 2) <= 0:
             raise EOFError("File downloaded is Empty")
         file.seek(0)
-        return file
+    except Exception as e:
+        file.close()
+        logger.warning("Error occurs when downloading files: " + str(e))
+        raise
+    return file
 
 
 def download_group_avatar(uid: str):
     url = "https://p.qlogo.cn/gh/{}/{}/".format(uid, uid)
     try:
         resp = requests.get(url)
-    except (URLError, HTTPError, ContentTooShortError) as e:
-        logger.warning("Error occurs when downloading files: " + str(e))
-        return ("Error occurs when downloading files: ") + str(e)
-    else:
         file = tempfile.NamedTemporaryFile()
         file.write(resp.content)
         if file.seek(0, 2) <= 0:
             raise EOFError("File downloaded is Empty")
         file.seek(0)
-        return file
+    except Exception as e:
+        file.close()
+        logger.warning("Error occurs when downloading files: " + str(e))
+        raise
+    return file
 
 
 def download_voice(voice_url: str):
     try:
         resp = requests.get(voice_url)
-    except Exception as e:
-        logger.warning("Error occurs when downloading files: " + str(e))
-        raise e
-    else:
         origin_file = tempfile.NamedTemporaryFile()
         origin_file.write(resp.content)
         if origin_file.seek(0, 2) <= 0:
-            origin_file.close()
             raise EOFError("File downloaded is Empty")
         origin_file.seek(0)
         silk_header = origin_file.read(10)
@@ -766,14 +762,18 @@ def download_voice(voice_url: str):
         if b"#!SILK_V3" in silk_header:
             with tempfile.NamedTemporaryFile() as pcm_file:
                 pilk.decode(origin_file.name, pcm_file.name)
-                origin_file.close()
                 audio_file = tempfile.NamedTemporaryFile()
                 pydub.AudioSegment.from_raw(file=pcm_file, sample_width=2, frame_rate=24000, channels=1).export(
                     audio_file, format="ogg", codec="libopus", parameters=["-vbr", "on"]
                 )
         else:
             audio_file = origin_file
-        return audio_file
+    except Exception as e:
+        origin_file.close()
+        audio_file.close()
+        logger.warning("Error occurs when downloading files: " + str(e))
+        raise
+    return audio_file
 
 
 def strf_time(seconds: int) -> str:

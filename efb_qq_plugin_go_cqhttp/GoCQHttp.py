@@ -531,7 +531,9 @@ class GoCQHttp(BaseClient):
         def _run():
             config = HyperConfig()
             config.access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
-            config.accesslog = create_serving_logger()
+            access_logger = create_serving_logger()
+            access_logger.setLevel(logging.WARNING)
+            config.accesslog = access_logger
             config.bind = [f"{host}:{port}"]
             if debug is not None:
                 self.debug = debug

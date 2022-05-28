@@ -10,6 +10,7 @@ from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Union
 
 import aiocqhttp
 from aiocqhttp import CQHttp, Event
+from aiocqhttp.exceptions import NetworkError
 from efb_qq_slave import BaseClient, QQMessengerChannel
 from ehforwarderbot import Chat, Message, MsgType, Status, coordinator
 from ehforwarderbot.chat import (
@@ -32,7 +33,6 @@ from hypercorn.asyncio import serve
 from hypercorn.config import Config as HyperConfig
 from PIL import Image
 from quart.logging import create_serving_logger
-from requests import RequestException
 
 from .ChatMgr import ChatManager
 from .Exceptions import (
@@ -804,7 +804,7 @@ class GoCQHttp(BaseClient):
     async def _coolq_api_wrapper(self, func_name, **kwargs):
         try:
             res = await self.coolq_bot.call_action(func_name, **kwargs)
-        except RequestException as e:
+        except NetworkError as e:
             raise CoolQDisconnectedException(("Unable to connect to CoolQ Client!" "Error Message:\n{}").format(str(e)))
         except aiocqhttp.Error as ex:
             api_ex = CoolQAPIFailureException(

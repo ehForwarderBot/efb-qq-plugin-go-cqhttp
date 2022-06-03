@@ -20,10 +20,10 @@ class ChatManager:
             channel=self.channel, uid=ChatID("__error_chat__"), name="Chat Missing"
         )
 
-    def build_efb_chat_as_private(self, context):
+    async def build_efb_chat_as_private(self, context):
         uid = context["user_id"]
         if "sender" not in context or "nickname" not in context["sender"]:
-            i: dict = self.channel.QQClient.get_stranger_info(uid)
+            i: dict = await self.channel.QQClient.get_stranger_info(uid)
             chat_name = ""
             if i:
                 chat_name = i["nickname"]
@@ -37,13 +37,13 @@ class ChatManager:
         )
         return efb_chat
 
-    def build_or_get_efb_member(self, chat: Chat, context):
+    async def build_or_get_efb_member(self, chat: Chat, context):
         member_uid = context["user_id"]
         with contextlib.suppress(KeyError):
             return chat.get_member(str(member_uid))
         chat_name = ""
         if "nickname" not in context:
-            i: dict = self.channel.QQClient.get_stranger_info(member_uid)
+            i: dict = await self.channel.QQClient.get_stranger_info(member_uid)
             chat_name = ""
             if i:
                 chat_name = i["nickname"]
@@ -55,20 +55,20 @@ class ChatManager:
             uid=str(member_uid),
         )
 
-    def build_efb_chat_as_group(self, context, update_member=False):  # Should be cached
+    async def build_efb_chat_as_group(self, context, update_member=False):  # Should be cached
         is_discuss = False if context["message_type"] == "group" else True
         chat_uid = context["discuss_id"] if is_discuss else context["group_id"]
         efb_chat = GroupChat(channel=self.channel, uid=str(chat_uid))
         if not is_discuss:
             efb_chat.uid = "group" + "_" + str(chat_uid)
-            i = self.channel.QQClient.get_group_info(chat_uid)
+            i = await self.channel.QQClient.get_group_info(chat_uid)
             if i is not None:
                 efb_chat.name = str(i["group_name"]) if "group_name" not in context else str(context["group_name"])
             else:
                 efb_chat.name = str(chat_uid)
             efb_chat.vendor_specific = {"is_discuss": False}
             if update_member:
-                members = self.channel.QQClient.get_group_member_list(chat_uid, False)
+                members = await self.channel.QQClient.get_group_member_list(chat_uid, False)
                 if members:
                     for member in members:
                         efb_chat.add_member(

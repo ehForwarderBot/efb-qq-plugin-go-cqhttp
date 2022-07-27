@@ -366,7 +366,7 @@ class GoCQHttp(BaseClient):
                     "context": context,
                     "download_url": context["file"]["url"],
                 }
-                self.async_download_file(**param_dict)
+                await self.async_download_file(**param_dict)
 
             asyncio.create_task(_handle_offline_file_upload_msg())
 

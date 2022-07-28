@@ -401,7 +401,7 @@ class GoCQHttp(BaseClient):
                     "file_id": context["file"]["id"],
                     "busid": context["file"]["busid"],
                 }
-                self.async_download_group_file(**param_dict)
+                await self.async_download_group_file(**param_dict)
 
             asyncio.create_task(_handle_group_file_upload_msg())
 

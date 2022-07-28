@@ -195,6 +195,9 @@ class GoCQHttp(BaseClient):
                 chat: Chat
                 author: ChatMember
 
+                # ignore qq guild message
+                if context["message_type"] == "guild":
+                    return
                 user = await self.get_user_info(qq_uid)
                 if context["message_type"] == "private":
                     context["alias"] = user["remark"]

@@ -1058,10 +1058,10 @@ class GoCQHttp(BaseClient):
             efb_msg.uid = str(context["user_id"]) + "_" + str(uuid.uuid4()) + "_" + str(1)
             efb_msg.text = "Sent a file\n{}".format(context["file"]["name"])
             if context["uid_prefix"] == "offline_file":
-                efb_msg.chat = asyncio.run(self.chat_manager.build_efb_chat_as_private(context))
+                efb_msg.chat = await self.chat_manager.build_efb_chat_as_private(context)
             elif context["uid_prefix"] == "group_upload":
-                efb_msg.chat = asyncio.run(self.chat_manager.build_efb_chat_as_group(context))
-            efb_msg.author = asyncio.run(self.chat_manager.build_or_get_efb_member(efb_msg.chat, context))
+                efb_msg.chat = await self.chat_manager.build_efb_chat_as_group(context)
+            efb_msg.author = await self.chat_manager.build_or_get_efb_member(efb_msg.chat, context)
             efb_msg.deliver_to = coordinator.master
             async_send_messages_to_master(efb_msg)
 

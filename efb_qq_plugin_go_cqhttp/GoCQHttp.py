@@ -812,12 +812,12 @@ class GoCQHttp(BaseClient):
         except aiocqhttp.Error as ex:
             api_ex = CoolQAPIFailureException(
                 "CoolQ HTTP API encountered an error!\nStatus Code:{} Return Code:{}".format(
-                    ex.status_code if hasattr(ex, 'status_code') else "Unknown",
-                    ex.retcode if hasattr(ex, 'retcode') else "Unknown"
+                    ex.status_code if hasattr(ex, "status_code") else "Unknown",
+                    ex.retcode if hasattr(ex, "retcode") else "Unknown",
                 )
             )
-            api_ex.status_code = ex.status_code if hasattr(ex, 'status_code') else None
-            api_ex.retcode = ex.retcode if hasattr(ex, 'retcode') else None
+            api_ex.status_code = ex.status_code if hasattr(ex, "status_code") else None
+            api_ex.retcode = ex.retcode if hasattr(ex, "retcode") else None
             raise api_ex
         else:
             return res

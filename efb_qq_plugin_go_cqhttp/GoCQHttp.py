@@ -10,7 +10,7 @@ from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Union
 
 import aiocqhttp
 from aiocqhttp import CQHttp, Event
-from aiocqhttp.exceptions import NetworkError
+from aiocqhttp.exceptions import NetworkError, ActionFailed
 from efb_qq_slave import BaseClient, QQMessengerChannel
 from ehforwarderbot import Chat, Message, MsgType, Status, coordinator
 from ehforwarderbot.chat import (
@@ -476,15 +476,15 @@ class GoCQHttp(BaseClient):
             group_info = await self.get_group_info(context["group_id"])
             context["uid_prefix"] = "group_request"
             context["group_name"] = "[Request]" + group_info["group_name"]
-            context["group_id"] = str(context["group_id"]) + "_notification"
+            group_name = group_id = context["group_id"]
+            context["group_id"] = str(group_id) + "_notification"
             context["message_type"] = "group"
             context["event_description"] = "\u2139 New Group Join Request"
-            original_group = await self.get_group_info(context["group_id"], False)
-            group_name = context["group_id"]
+            original_group = await self.get_group_info(group_id, False)
             if original_group is not None and "group_name" in original_group:
                 group_name = original_group["group_name"]
             msg = Message()
-            msg.uid = "group" + "_" + str(context["group_id"])
+            msg.uid = "group" + "_" + context["group_id"]
             msg.author = (self.chat_manager.build_efb_chat_as_system_user(context)).other
             msg.chat = await self.chat_manager.build_efb_chat_as_group(context)
             msg.deliver_to = coordinator.master
@@ -502,7 +502,7 @@ class GoCQHttp(BaseClient):
                     context["user_id"],
                 )
             msg.text = "{} wants to join the group {}({}). \nHere is the comment: {}".format(
-                name, group_name, context["group_id"], context["comment"]
+                name, group_name, group_id, context["comment"]
             )
             msg.commands = MessageCommands(
                 [
@@ -1033,6 +1033,10 @@ class GoCQHttp(BaseClient):
         res = result == "accept"
         try:
             self.coolq_bot.sync.set_friend_add_request(flag=flag, approve=res)
+        except ActionFailed as e:
+            if e.retcode == 100:
+                return "Processed By Other Clients"
+            return "Failed to process request! Error Message:\n" + getattr(e, "message", repr(e))
         except CoolQAPIFailureException as e:
             return "Failed to process request! Error Message:\n" + getattr(e, "message", repr(e))
         return "Done"
@@ -1041,6 +1045,10 @@ class GoCQHttp(BaseClient):
         res = result == "accept"
         try:
             self.coolq_bot.sync.set_group_add_request(flag=flag, approve=res, sub_type=sub_type)
+        except ActionFailed as e:
+            if e.retcode == 100:
+                return "Processed By Other Admins"
+            return "Failed to process request! Error Message:\n" + getattr(e, "message", repr(e))
         except CoolQAPIFailureException as e:
             return "Failed to process request! Error Message:\n" + getattr(e, "message", repr(e))
         return "Done"

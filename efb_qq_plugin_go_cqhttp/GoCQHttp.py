@@ -10,7 +10,7 @@ from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Union
 
 import aiocqhttp
 from aiocqhttp import CQHttp, Event
-from aiocqhttp.exceptions import NetworkError, ActionFailed
+from aiocqhttp.exceptions import ActionFailed, NetworkError
 from efb_qq_slave import BaseClient, QQMessengerChannel
 from ehforwarderbot import Chat, Message, MsgType, Status, coordinator
 from ehforwarderbot.chat import (

@@ -303,10 +303,7 @@ class QQMsgProcessor:
             elif dict_data["app"] == "com.tencent.groupphoto":
                 album_name = dict_data["meta"]["albumData"]["title"]
                 photo_urls = ["https://" + i["url"] for i in dict_data["meta"]["albumData"]["pics"]]
-                efb_msg.text = "【群相册】\n\n{}\n\n{}".format(
-                    album_name,
-                    "\n".join(photo_urls)
-                )
+                efb_msg.text = "【群相册】\n\n{}\n\n{}".format(album_name, "\n".join(photo_urls))
 
             # Tencent group photo album create
             elif dict_data["app"] == "com.tencent.qzone.albumShare":

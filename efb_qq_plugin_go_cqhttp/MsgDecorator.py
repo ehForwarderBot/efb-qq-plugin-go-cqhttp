@@ -299,6 +299,20 @@ class QQMsgProcessor:
                     preview=meta_detail1["preview"],
                 )
 
+            # Tencent group photo upload
+            elif dict_data["app"] == "com.tencent.groupphoto":
+                album_name = dict_data["meta"]["albumData"]["title"]
+                photo_urls = ["https://" + i["url"] for i in dict_data["meta"]["albumData"]["pics"]]
+                efb_msg.text = "【群相册】\n\n{}\n\n{}".format(
+                    album_name,
+                    "\n".join(photo_urls)
+                )
+
+            # Tencent group photo album create
+            elif dict_data["app"] == "com.tencent.qzone.albumShare":
+                album_name = dict_data["meta"]["albumData"]["title"]
+                efb_msg.text = "【群相册】\n\n{}".format(album_name)
+
             # Shared third-party Apps
             elif dict_data["app"] == "com.tencent.structmsg":
                 meta_view = dict_data["meta"][dict_data["view"]]

@@ -39,7 +39,7 @@ efb-qq-plugin-go-cqhttp 是 efb-qq-slave 的插件，需要配合 efb-qq-slave �
         # HTTP 通信设置
         - http:
             # HTTP监听地址
-            address: 0.0.0.0:5700 
+            address: 127.0.0.1:5700
             # 反向 HTTP 超时时间, 单位秒
             # 最小值为 5，小于 5 将会忽略本项设置
             timeout: 5

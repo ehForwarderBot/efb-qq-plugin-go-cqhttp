@@ -4,7 +4,7 @@ description = "EQS plugin for Go-CQHttp API Compatible Client."
 authors = [{ name = "XYenon", email = "i@xyenon.bid" }]
 dependencies = [
     "efb-qq-slave @ git+https://github.com/milkice233/efb-qq-slave@master",
-    "ehforwarderbot~=2.1.1",
+    "ehforwarderbot>=2.1.1",
     "PyYAML~=6.0",
     "requests~=2.27.1",
     "python-magic~=0.4.25",

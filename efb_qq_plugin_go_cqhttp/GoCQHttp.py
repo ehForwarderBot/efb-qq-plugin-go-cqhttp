@@ -1087,6 +1087,9 @@ class GoCQHttp(BaseClient):
             return download_group_avatar(chat_type[1])
         else:
             return download_group_avatar("")
+    def get_chat_member_picture(self, chat_member: 'ChatMember') -> BinaryIO:
+        uid = chat_member.uid.split('_')[1]
+        return download_user_avatar(uid)
 
     def get_chats(self):
         async def _get_chats():

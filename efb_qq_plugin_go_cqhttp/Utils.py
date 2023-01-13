@@ -1,10 +1,10 @@
 import logging
 import tempfile
-from typing import IO, Optional
+from typing import IO, Optional, Union
 
+import httpx
 import pilk
 import pydub
-import requests
 from ehforwarderbot import Message, coordinator
 
 logger = logging.getLogger(__name__)
@@ -641,20 +641,42 @@ qq_sface_list = {
 }
 
 
-def cq_get_image(image_link: str) -> Optional[IO]:  # Download image from QQ
+async def async_get_file(url: str) -> IO:
+    temp_file = tempfile.NamedTemporaryFile()
     try:
-        resp = requests.get(image_link)
-        file = tempfile.NamedTemporaryFile()
-        file.write(resp.content)
-        if file.seek(0, 2) <= 0:
-            raise EOFError("File downloaded is Empty")
-        file.seek(0)
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url)
+            temp_file.write(resp.content)
+            if temp_file.seek(0, 2) <= 0:
+                raise EOFError("File downloaded is Empty")
+            temp_file.seek(0)
     except Exception as e:
-        file.close()
+        temp_file.close()
+        raise e
+    return temp_file
+
+
+def sync_get_file(url: str) -> IO:
+    temp_file = tempfile.NamedTemporaryFile()
+    try:
+        resp = httpx.get(url)
+        temp_file.write(resp.content)
+        if temp_file.seek(0, 2) <= 0:
+            raise EOFError("File downloaded is Empty")
+        temp_file.seek(0)
+    except Exception as e:
+        temp_file.close()
+        raise e
+    return temp_file
+
+
+async def cq_get_image(image_link: str) -> Optional[IO]:  # Download image from QQ
+    try:
+        return await async_get_file(image_link)
+    except Exception as e:
         logger.warning("File download failed.")
         logger.warning(str(e))
         return None
-    return file
 
 
 def async_send_messages_to_master(msg: Message):
@@ -702,61 +724,36 @@ def param_spliter(str_param):
     return param
 
 
-def download_file(download_url):
+async def download_file(download_url: str) -> Union[IO, str]:
     try:
-        resp = requests.get(download_url)
-        file = tempfile.NamedTemporaryFile()
-        file.write(resp.content)
-        if file.seek(0, 2) <= 0:
-            raise EOFError("File downloaded is Empty")
-        file.seek(0)
+        return await async_get_file(download_url)
     except Exception as e:
-        file.close()
         logger.warning("Error occurs when downloading files: " + str(e))
-        return ("Error occurs when downloading files: ") + str(e)
-    return file
+        return "Error occurs when downloading files: " + str(e)
 
 
 def download_user_avatar(uid: str):
     url = "https://q1.qlogo.cn/g?b=qq&nk={}&s=0".format(uid)
     try:
-        resp = requests.get(url)
-        file = tempfile.NamedTemporaryFile()
-        file.write(resp.content)
-        if file.seek(0, 2) <= 0:
-            raise EOFError("File downloaded is Empty")
-        file.seek(0)
+        return sync_get_file(url)
     except Exception as e:
-        file.close()
         logger.warning("Error occurs when downloading files: " + str(e))
         raise
-    return file
 
 
 def download_group_avatar(uid: str):
     url = "https://p.qlogo.cn/gh/{}/{}/".format(uid, uid)
     try:
-        resp = requests.get(url)
-        file = tempfile.NamedTemporaryFile()
-        file.write(resp.content)
-        if file.seek(0, 2) <= 0:
-            raise EOFError("File downloaded is Empty")
-        file.seek(0)
+        return sync_get_file(url)
     except Exception as e:
-        file.close()
         logger.warning("Error occurs when downloading files: " + str(e))
         raise
-    return file
 
 
-def download_voice(voice_url: str):
+async def download_voice(voice_url: str):
+    origin_file, audio_file = None, None
     try:
-        resp = requests.get(voice_url)
-        origin_file = tempfile.NamedTemporaryFile()
-        origin_file.write(resp.content)
-        if origin_file.seek(0, 2) <= 0:
-            raise EOFError("File downloaded is Empty")
-        origin_file.seek(0)
+        origin_file = await async_get_file(voice_url)
         silk_header = origin_file.read(10)
         origin_file.seek(0)
         if b"#!SILK_V3" in silk_header:
@@ -769,8 +766,10 @@ def download_voice(voice_url: str):
         else:
             audio_file = origin_file
     except Exception as e:
-        origin_file.close()
-        audio_file.close()
+        if origin_file:
+            origin_file.close()
+        if audio_file:
+            audio_file.close()
         logger.warning("Error occurs when downloading files: " + str(e))
         raise
     return audio_file

@@ -164,7 +164,7 @@ class GoCQHttp(BaseClient):
                 main_text, messages, _ = await message_elements_wrapper(context, fmt_forward_msgs, chat)
                 return main_text, messages, []
             else:
-                messages.extend(self.call_msg_decorator(msg_type, msg_data, chat))
+                messages.extend(await self.call_msg_decorator(msg_type, msg_data, chat))
             return main_text, messages, at_list
 
         async def message_elements_wrapper(
@@ -707,7 +707,7 @@ class GoCQHttp(BaseClient):
                 asyncio.run(self.coolq_send_message(chat_type[0], chat_type[1], msg.text))
         return msg
 
-    def call_msg_decorator(self, msg_type: str, *args) -> List[Message]:
+    async def call_msg_decorator(self, msg_type: str, *args) -> List[Message]:
         try:
             func = getattr(self.msg_decorator, "qq_{}_wrapper".format(msg_type))
         except AttributeError:
@@ -715,7 +715,7 @@ class GoCQHttp(BaseClient):
             self.logger.error(msg)
             return self.msg_decorator.qq_unsupported_wrapper(msg)
         else:
-            return func(*args)
+            return await func(*args) if asyncio.iscoroutinefunction(func) else func(*args)
 
     async def get_qq_uid(self):
         res = await self.get_login_info()
@@ -1054,7 +1054,7 @@ class GoCQHttp(BaseClient):
         return "Done"
 
     async def async_download_file(self, context, download_url):
-        res = download_file(download_url)
+        res = await download_file(download_url)
         if isinstance(res, str):
             context["message"] = ("[Download] ") + res
             await self.send_efb_group_notice(context)

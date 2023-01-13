@@ -6,7 +6,6 @@ dependencies = [
     "efb-qq-slave @ git+https://github.com/milkice233/efb-qq-slave@master",
     "ehforwarderbot~=2.1.1",
     "PyYAML~=6.0",
-    "requests~=2.27.1",
     "python-magic~=0.4.25",
     "Pillow~=9.0.1",
     "aiocqhttp~=1.4.3",
@@ -14,6 +13,7 @@ dependencies = [
     "hypercorn~=0.13.2",
     "pilk~=0.0.2",
     "pydub~=0.25.1",
+    "httpx>=0.23.3",
 ]
 requires-python = ">=3.7"
 license = { text = "AGPL-3.0-only" }

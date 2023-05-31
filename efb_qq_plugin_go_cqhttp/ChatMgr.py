@@ -21,6 +21,13 @@ class ChatManager:
         )
 
     async def build_efb_chat_as_private(self, context):
+        """
+        Build a EFB PrivateChat from a QQ context.
+
+        + The uid of the chat is `private_<user_id>`.
+        + The name of the chat is the nickname of the user.
+        """
+
         uid = context["user_id"]
         if "sender" not in context or "nickname" not in context["sender"]:
             i: dict = await self.channel.QQClient.get_stranger_info(uid)
@@ -55,7 +62,11 @@ class ChatManager:
             uid=str(member_uid),
         )
 
-    async def build_efb_chat_as_group(self, context, update_member=False):  # Should be cached
+    async def build_efb_chat_as_group(self, context, update_member=False):
+        """
+        Should be cached
+        """
+
         is_discuss = False if context["message_type"] == "group" else True
         chat_uid = context["discuss_id"] if is_discuss else context["group_id"]
         efb_chat = GroupChat(channel=self.channel, uid=str(chat_uid))
@@ -84,6 +95,18 @@ class ChatManager:
         return efb_chat
 
     def build_efb_chat_as_anonymous_user(self, chat: Chat, context):
+        """
+        Build a EFB Member from a QQ group context if it is anonymous, the
+        context["anonymous"] should be a dict with keys ["id", "name", "flag"].
+
+        + The name of this member is "[Anonymous] {name}".
+        + The uid of this chat is "anonymous_{flag}".
+        + Use vendor_specific to store the anonymous_id.
+
+        :param chat: The EFB Chat to add the member to
+        :param context: The QQ context
+        """
+
         anonymous_data = context["anonymous"]
         member_uid = "anonymous" + "_" + anonymous_data["flag"]
         with contextlib.suppress(KeyError):
@@ -99,7 +122,11 @@ class ChatManager:
             },
         )
 
-    def build_efb_chat_as_system_user(self, context):  # System user only!
+    def build_efb_chat_as_system_user(self, context):
+        """
+        System user only!
+        """
+
         return SystemChat(
             channel=self.channel,
             name=str(context["event_description"]),

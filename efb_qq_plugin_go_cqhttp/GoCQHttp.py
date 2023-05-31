@@ -54,6 +54,26 @@ from .Utils import (
 
 
 class GoCQHttp(BaseClient):
+    """
+    GoCQHttp inherits ebf-slave-qq's BaseClient.
+
+    :attr client_name: Name of the client.
+    :attr client_id: ID of the client.
+    :attr client_config: Config of the client.
+    :attr coolq_bot: aiocqhttp Bot instance
+    :attr logger: Logger instance
+    :attr channel: Channel instance
+    :attr friend_list: List of friends
+    :attr friend_dict: mapping from friend id to friend info
+    :attr stranger_dict: mapping from stranger id to stranger info
+    :attr group_list: List of groups
+    :attr group_dict: mapping from group id to group info
+    :attr group_member_dict: mapping from group id to a dict ["members, "time]
+    :attr group_member_info_dict: UNUSED
+    :attr discuss_list: List of discusses group
+    :attr extra_group_list: List of extra groups
+    """
+
     client_name: str = "GoCQHttp Client"
     client_id: str = "GoCQHttp"
     client_config: Dict[str, Any]
@@ -114,6 +134,21 @@ class GoCQHttp(BaseClient):
         async def message_element_wrapper(
             context: Dict[str, Any], msg_element: Dict[str, Any], chat: Chat
         ) -> Tuple[str, List[Message], List[Tuple[Tuple[int, int], Union[Chat, ChatMember]]]]:
+            """
+            Handle a single `msg_element` from CoolQ.
+
+            For the different types of messages, the `data` field is different.
+
+            + `text`: Just set `main_text` to the `msg_data["text"]
+            + `face`: Set `main_text` to the corresponding emoji
+            + `sface`: Set `main_text` to ❓
+            + `at`: get the card name of the user in the group, and set `main_text` to `@card_name`
+                    Store the dict ((startPosition, endPosition), chat) to `at_list`
+            + `reply`: Set `main_text` with the customized information
+            + `forward`: recursively called `message_elements_wrapper`
+            + other: call `call_msg_decorator`.
+            """
+
             msg_type = msg_element["type"]
             msg_data = msg_element["data"]
             main_text: str = ""
@@ -147,6 +182,7 @@ class GoCQHttp(BaseClient):
                     at_dict = ((substitution_begin, substitution_end), chat.self)
                     at_list.append(at_dict)
             elif msg_type == "reply":
+                # TODO: FIX, KeyError "qq", can't receive reply message
                 ref_user = await self.get_user_info(msg_data["qq"])
                 main_text = (
                     f'「{ref_user["remark"]}（{ref_user["nickname"]}）：{msg_data["text"]}」\n'
@@ -170,6 +206,10 @@ class GoCQHttp(BaseClient):
         async def message_elements_wrapper(
             context: Dict[str, Any], msg_elements: List[Dict[str, Any]], chat: Chat
         ) -> Tuple[str, List[Message], Dict[Tuple[int, int], Union[Chat, ChatMember]]]:
+            """
+            Iterate through `msg_elements` and call `message_element_wrapper` for each element.
+            """
+
             messages: List[Message] = []
             main_text: str = ""
             at_dict: Dict[Tuple[int, int], Union[Chat, ChatMember]] = {}
@@ -188,7 +228,43 @@ class GoCQHttp(BaseClient):
 
         @self.coolq_bot.on_message
         async def handle_msg(context: Event):
+            """
+            Wrap `_handle_msg` to handle the coming message. And
+            use `asyncio.create_task` to create a new task to run `_handle_msg`
+
+            :param event: the event object of CQHTTP, see
+            https://aiocqhttp.nonebot.dev/module/aiocqhttp/#aiocqhttp.Event
+            """
+
             async def _handle_msg():
+                """
+                Handle the coming message. There are three types of message: private,
+                group and guild:
+
+                + private: the message is sent to the bot privately, and should
+                call `build_efb_chat_as_private` to build the chat object.
+                + group: the message is sent to the bot in a group, and should
+                call `build_efb_chat_as_group` to build the chat object.
+                + guild: the message is sent to the bot in a guild, and should
+                be ignored at present.
+
+                Next, we need to create the author object. There are three types:
+
+                + normal: the author is a normal user, and should call
+                `build_or_get_efb_member` to build the member object.
+                + anonymous: the author is an anonymous user, and should call
+                `build_efb_chat_as_anonymous_user` to build the member object.
+                + system: the author is a system user, and should call
+                `build_efb_chat_as_system_user` to build the member object (
+                For the group message, if it is not anonymous, and its subtype
+                is `notice`).
+
+                Then, we call `message_elements_wrapper` to wrap the message
+                elements, and get the main text, messages and at list.
+
+                Finally, we call `async_send_messages_to_master` to send the message.
+                """
+
                 self.logger.debug(repr(context))
                 msg_elements = context["message"]
                 qq_uid = context["user_id"]
@@ -258,6 +334,13 @@ class GoCQHttp(BaseClient):
 
         @self.coolq_bot.on_notice("group_increase")
         async def handle_group_increase_msg(context: Event):
+            """
+            Handle the group increase message. There are two types of group increase:
+
+            + invite: the user is invited to the group.
+            + approve: the user is approved to join the group.
+            """
+
             context["event_description"] = "\u2139 Group Member Increase Event"
             if (context["sub_type"]) == "invite":
                 text = "{nickname}({context[user_id]}) joined the group({group_name}) via invitation"
@@ -279,6 +362,14 @@ class GoCQHttp(BaseClient):
 
         @self.coolq_bot.on_notice("group_decrease")
         async def handle_group_decrease_msg(context: Event):
+            """
+            Handle the group decrease message. There are three types of group decrease:
+
+            + leave: the user leaves the group.
+            + kick: the member is kicked from the group.
+            + kick_me: the QQ itself is kicked from the group.
+            """
+
             context["event_description"] = "\u2139 Group Member Decrease Event"
             original_group = await self.get_group_info(context["group_id"], False)
             group_name = context["group_id"]
@@ -302,6 +393,13 @@ class GoCQHttp(BaseClient):
 
         @self.coolq_bot.on_notice("group_admin")
         async def handle_group_admin_msg(context: Event):
+            """
+            Handle the group admin change message. There are two types of group admin change:
+
+            + set: the user is appointed as the group admin.
+            + unset: the user is de-appointed as the group admin.
+            """
+
             context["event_description"] = "\u2139 Group Admin Change Event"
             if (context["sub_type"]) == "set":
                 text = "{nickname}({context[user_id]}) has been appointed as the group({group_name}) administrator"
@@ -323,6 +421,13 @@ class GoCQHttp(BaseClient):
 
         @self.coolq_bot.on_notice("group_ban")
         async def handle_group_ban_msg(context: Event):
+            """
+            Handle the group ban message. There are two types of group ban:
+
+            + ban: the user is banned from the group.
+            + lift_ban: the user is lifted from the ban list.
+            """
+
             context["event_description"] = "\u2139 Group Member Restrict Event"
             if (context["sub_type"]) == "ban":
                 text = (
@@ -440,8 +545,13 @@ class GoCQHttp(BaseClient):
                 MessageRemoval(source_channel=self.channel, destination_channel=coordinator.master, message=efb_msg)
             )
 
-        @self.coolq_bot.on_request("friend")  # Add friend request
+        @self.coolq_bot.on_request("friend")
         async def handle_add_friend_request(context: Event):
+            """
+            Add friend request by customized commands and will
+            later handled by `process_friend_request` method.
+            """
+
             self.logger.debug(repr(context))
             context["event_description"] = "\u2139 New Friend Request"
             context["uid_prefix"] = "friend_request"
@@ -472,6 +582,11 @@ class GoCQHttp(BaseClient):
 
         @self.coolq_bot.on_request("group")
         async def handle_group_request(context: Event):
+            """
+            Add group request by customized commands and will
+            later handled by `process_group_request` method.
+            """
+
             self.logger.debug(repr(context))
             group_info = await self.get_group_info(context["group_id"])
             context["uid_prefix"] = "group_request"
@@ -531,7 +646,23 @@ class GoCQHttp(BaseClient):
         asyncio.run(self.check_status_periodically(run_once=True))
 
     def run_instance(self, host: str, port: int, debug: bool = False):
+        """
+        Run the http server in a new thread. Although EFB will create a
+        thread for each slave instance, however, each thread would call
+        `coordinator.send_message` to send message to master instance.
+        Thus we need to create a new thread to isolate the event loop,
+        thus avoiding blocking the whole EFB process.
+        """
+
         def _run():
+            """
+            The thread entry point, which would initialize the http server
+            config. And will use `loop.create_task` to start the server,
+            check status periodically and update contacts periodically.
+            This thread will never return and should be shutdown by
+            `stop_polling` method.
+            """
+
             config = HyperConfig()
             config.access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
             access_logger = create_serving_logger()
@@ -543,6 +674,8 @@ class GoCQHttp(BaseClient):
                 config.use_reloader = debug
             config.errorlog = config.accesslog
 
+            # Gracefully shutdown the Quard app `coolq_bot.server_app`
+            # See https://hypercorn.readthedocs.io/en/latest/how_to_guides/api_usage.html#graceful-shutdown
             self.loop.create_task(serve(self.coolq_bot.server_app, config, shutdown_trigger=self.shutdown_event.wait))
             self.loop.create_task(self.check_status_periodically())
             self.loop.create_task(self.update_contacts_periodically())
@@ -608,6 +741,11 @@ class GoCQHttp(BaseClient):
         return groups + self.discuss_list
 
     async def get_friends(self) -> List:
+        """
+        Get the friend list from CoolQ, and call `build_efb_chat_as_private`
+        to build the chat object for each friend.
+        """
+
         try:
             await self.update_friend_list()  # Force update friend list
         except CoolQAPIFailureException:
@@ -708,6 +846,11 @@ class GoCQHttp(BaseClient):
         return msg
 
     async def call_msg_decorator(self, msg_type: str, *args) -> List[Message]:
+        """
+        Call the corresponding message decorator function according to
+        the message type.
+        """
+
         try:
             func = getattr(self.msg_decorator, "qq_{}_wrapper".format(msg_type))
         except AttributeError:
@@ -725,6 +868,23 @@ class GoCQHttp(BaseClient):
             return None
 
     async def get_group_member_list(self, group_id, no_cache=False) -> List[Dict[str, Any]]:
+        """
+        First call the `/get_group_member_list` API to get the member
+        list of the group. And update the `group_member_dict`. And
+        return the member list.
+
+        The response list of a dict is the following format:
+        + `group_id`: The group id.
+        + `user_id`: The QQ user id.
+        + `nickname`: The name of the user.
+        + `card`: The remark of the user in this group.
+        + ... See https://docs.go-cqhttp.org/api
+
+        :param group_id: The group id.
+        :param no_cache: If True, force update the member list.
+        :return: The member list.
+        """
+
         if (
             no_cache
             or (group_id not in self.group_member_dict)
@@ -742,6 +902,22 @@ class GoCQHttp(BaseClient):
         return self.group_member_dict[group_id]["members"]
 
     async def get_user_info(self, user_id: int, group_id: Optional[str] = None, no_cache=False):
+        """
+        Get the user info from the cache `self.friend_dict` or `self.stranger_dict`.
+        If the user is not in the cache, then query the CoolQ API. And then update the cache.
+        If the `group_id` is not None, we should use the information in the group.
+
+        Note: we need to add the following fields to the user info:
+        + `is_friend`: True if the user is a friend of the bot.
+        + `is_group_member`: True if the user is a member of the group.
+        + `in_group_info`: The member info in the group.
+
+        :param user_id: The user id.
+        :param group_id: The group id. If the user is in the group, then the user is a member.
+        :param no_cache: If True, then query the CoolQ API directly.
+
+        :return: The user info.
+        """
         user_id = int(user_id)
         if no_cache or (not self.friend_list) or (user_id not in self.friend_dict):
             await self.update_friend_list()
@@ -905,6 +1081,19 @@ class GoCQHttp(BaseClient):
         self.send_msg_to_master(context)
 
     async def update_friend_list(self):
+        """
+        Call `/get_friend_list` to get the friend list to `friend_list`.
+        See https://docs.go-cqhttp.org/api/
+
+        The response json is:
+        + `user_id`: QQ number
+        + `nickname`: nickname
+        + `remark`: remark
+
+        Iterate the `friend_list` and update `friend_dict` with `user_id` as key.
+        If the remark is empty, use the nickname instead.
+        """
+
         self.friend_list = await self.coolq_api_query("get_friend_list")
         if self.friend_list:
             self.logger.debug("Update friend list completed. Entries: %s", len(self.friend_list))
@@ -916,6 +1105,22 @@ class GoCQHttp(BaseClient):
             self.logger.warning("Failed to update friend list")
 
     async def update_group_list(self):
+        """
+        Call `/get_group_list` to get the group list to `group_list`.
+        See https://docs.go-cqhttp.org/api/
+
+        The response json is:
+        + `group_id`: group id
+        + `group_name`: group name
+        + `group_memo`: group remark
+        + `group_create_time`: group create time
+        + `group_level`: group level
+        + `member_count`: member count
+        + `max_member_count`: max member count
+
+        Iterate the `group_list` and update `group_dict` with `group_id` as key.
+        """
+
         self.group_list = await self.coolq_api_query("get_group_list")
         if self.group_list:
             self.logger.debug("Update group list completed. Entries: %s", len(self.group_list))
@@ -953,6 +1158,11 @@ class GoCQHttp(BaseClient):
         return self.friend_dict[uid]["remark"]
 
     async def send_efb_group_notice(self, context):
+        """
+        Send a message to the group specified in `context`.
+        The message will be sent as a system message for `author`.
+        """
+
         context["message_type"] = "group"
         self.logger.debug(repr(context))
         chat = await self.chat_manager.build_efb_chat_as_group(context)
@@ -1080,6 +1290,14 @@ class GoCQHttp(BaseClient):
         await self.async_download_file(context, download_url)
 
     def get_chat_picture(self, chat: "Chat") -> BinaryIO:
+        """
+        Get the picture of a private or group chat. The format of the `chat`
+        is either `private_<user_id>` or `group_<group_id>`.
+
+        :param chat: The chat to get picture.
+        :return: The picture of the chat.
+        """
+
         chat_type = chat.uid.split("_")
         if chat_type[0] == "private":
             return download_user_avatar(chat_type[1])
@@ -1144,6 +1362,12 @@ class GoCQHttp(BaseClient):
         )
 
     def stop_polling(self):
+        """
+        Gracefully stop the slave, set the flag of `shutdown_event` to
+        stop the Hypercorn server and stop the event loop and join the
+        thread.
+        """
+
         self.logger.debug("Gracefully stopping QQ Slave")
         self.shutdown_event.set()
         self.loop.stop()

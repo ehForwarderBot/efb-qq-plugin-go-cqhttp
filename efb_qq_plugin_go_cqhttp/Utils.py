@@ -670,7 +670,11 @@ def sync_get_file(url: str) -> IO:
     return temp_file
 
 
-async def cq_get_image(image_link: str) -> Optional[IO]:  # Download image from QQ
+async def cq_get_image(image_link: str) -> Optional[IO]:
+    """
+    Download image from QQ
+    """
+
     try:
         return await async_get_file(image_link)
     except Exception as e:
@@ -680,6 +684,11 @@ async def cq_get_image(image_link: str) -> Optional[IO]:  # Download image from 
 
 
 def async_send_messages_to_master(msg: Message):
+    """
+    Send message to master, if the message contains a file, the file will
+    be closed after sending NO MATTER WHAT.
+    """
+
     try:
         coordinator.send_message(msg)
     finally:
@@ -687,7 +696,11 @@ def async_send_messages_to_master(msg: Message):
             msg.file.close()
 
 
-def process_quote_text(text, max_length):  # Simple wrapper for processing quoted text
+def process_quote_text(text, max_length):
+    """
+    Simple wrapper for processing quoted text
+    """
+
     qt_txt = "%s" % text
     if max_length > 0:
         tgt_text = qt_txt[:max_length]
@@ -701,14 +714,22 @@ def process_quote_text(text, max_length):  # Simple wrapper for processing quote
     return tgt_text
 
 
-def coolq_text_encode(text: str):  # Escape special characters for CQ Code text
+def coolq_text_encode(text: str):
+    """
+    Escape special characters for CQ Code text
+    """
+
     expr = (("&", "&amp;"), ("[", "&#91;"), ("]", "&#93;"))
     for r in expr:
         text = text.replace(*r)
     return text
 
 
-def coolq_para_encode(text: str):  # Escape special characters for CQ Code parameters
+def coolq_para_encode(text: str):
+    """
+    Escape special characters for CQ Code parameters
+    """
+
     expr = (("&", "&amp;"), ("[", "&#91;"), ("]", "&#93;"), (",", "&#44;"))
     for r in expr:
         text = text.replace(*r)
@@ -716,6 +737,10 @@ def coolq_para_encode(text: str):  # Escape special characters for CQ Code param
 
 
 def param_spliter(str_param):
+    """
+    UNUSED, split parameters: key=value;key=value;key=value
+    """
+
     params = str_param.split(";")
     param = {}
     for _k in params:
@@ -776,6 +801,10 @@ async def download_voice(voice_url: str):
 
 
 def strf_time(seconds: int) -> str:
+    """
+    Convert seconds to human readable string format: 1d2h3m4s
+    """
+
     minutes, seconds = divmod(seconds, 60)
     hours, minutes = divmod(minutes, 60)
     days, hours = divmod(hours, 24)

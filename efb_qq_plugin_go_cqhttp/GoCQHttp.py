@@ -61,6 +61,7 @@ class GoCQHttp(BaseClient):
     :attr client_id: ID of the client.
     :attr client_config: Config of the client.
     :attr coolq_bot: aiocqhttp Bot instance
+    :attr coolq_api_timeout: Timeout of CoolQ API
     :attr logger: Logger instance
     :attr channel: Channel instance
     :attr friend_list: List of friends
@@ -79,6 +80,7 @@ class GoCQHttp(BaseClient):
     client_config: Dict[str, Any]
 
     coolq_bot: CQHttp = None
+    coolq_api_timeout: float
     logger: logging.Logger = logging.getLogger(__name__)
     channel: QQMessengerChannel
 
@@ -97,9 +99,13 @@ class GoCQHttp(BaseClient):
     def __init__(self, client_id: str, config: Dict[str, Any], channel):
         super().__init__(client_id, config)
         self.client_config = config[self.client_id]
+
+        # To keep the compatibility for old config
+        self.coolq_api_timeout = self.client_config.get("api_timeout", 60)
         self.coolq_bot = CQHttp(
             api_root=self.client_config["api_root"],
             access_token=self.client_config["access_token"],
+            api_timeout_sec=self.coolq_api_timeout,
         )
         self.channel = channel
         self.chat_manager = ChatManager(channel)
@@ -766,6 +772,22 @@ class GoCQHttp(BaseClient):
         # Replaced by handle_msg()
         pass
 
+    def supported_message_types(self):
+        """
+        Return a set of supported message types to the efb-qq-slave
+        """
+
+        return {
+            MsgType.Text,
+            MsgType.Sticker,
+            MsgType.Image,
+            MsgType.Link,
+            MsgType.Voice,
+            MsgType.Animation,
+            MsgType.File,
+            MsgType.Video,
+        }
+
     def send_message(self, msg: "Message") -> "Message":
         # todo Add support for edited message
         """
@@ -843,6 +865,8 @@ class GoCQHttp(BaseClient):
             msg.uid = asyncio.run(self.coolq_send_message(chat_type[0], chat_type[1], text))
             if msg.text:
                 asyncio.run(self.coolq_send_message(chat_type[0], chat_type[1], msg.text))
+        elif msg.type in [MsgType.File, MsgType.Video]:
+            msg.uid = asyncio.run(self.coolq_send_file(chat_type[0], chat_type[1], msg.path, msg.filename))
         return msg
 
     async def call_msg_decorator(self, msg_type: str, *args) -> List[Message]:
@@ -979,6 +1003,31 @@ class GoCQHttp(BaseClient):
         keyword = msg_type if msg_type != "private" else "user"
         res = await self.coolq_api_query("send_msg", message_type=msg_type, **{keyword + "_id": uid}, message=message)
         return str(uid) + "_" + str(res["message_id"])
+
+    async def coolq_send_file(self, msg_type, uid, path, filename):
+        """
+        Send a file to the user/group. We already have the temp file,
+        which is the `path`. It is a PosixPath object. We need to use
+        `str` to convert it to a string for the CQHTTP API.
+
+        + user: /upload_private_file
+        + group: /upload_group_file
+
+        However, the CQHTTP api has no return value. So we need to
+        generate a unique id for the file. We use the hash of the
+        temp file name to generate the unique id.
+
+        :param msg_type: The message type. Can be `private` or `group`.
+        :param uid: The user/group id.
+        :param path: The temp file Path object.
+        :param filename: The file name.
+        """
+
+        keyword = msg_type if msg_type != "private" else "user"
+        func_name = f"upload_{msg_type}_file"
+
+        await self.coolq_api_query(func_name, **{keyword + "_id": uid}, file=str(path), name=filename)
+        return str(uid) + "_" + str(hash(path))
 
     async def _coolq_api_wrapper(self, func_name, **kwargs):
         try:
@@ -1219,7 +1268,13 @@ class GoCQHttp(BaseClient):
                 uid_type = status.message.uid.split("_")
                 asyncio.run(self.recall_message(uid_type[1]))
             except CoolQAPIFailureException:
-                raise EFBMessageError(("Failed to recall the message. This message may have already expired."))
+                # The file cannot use `delete_msg` to recall
+                raise EFBMessageError(
+                    (
+                        "Failed to recall the message. This message may have already expired,"
+                        "or this message is a file."
+                    )
+                )
         else:
             raise EFBOperationNotSupported()
         # todo

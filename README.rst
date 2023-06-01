@@ -70,6 +70,7 @@ efb-qq-plugin-go-cqhttp 是 efb-qq-slave 的插件，需要配合 efb-qq-slave �
            type: HTTP                        # 指定 efb-qq-plugin-go-cqhttp 与 GoCQHttp 通信的方式 现阶段仅支持 HTTP
            access_token:
            api_root: http://127.0.0.1:5700/  # GoCQHttp API接口地址/端口
+           api_timeout: 60                   # GoCQHttp API接口超时时间
            host: 127.0.0.1                   # efb-qq-slave 所监听的地址用于接收消息
            port: 8000                        # 同上
 

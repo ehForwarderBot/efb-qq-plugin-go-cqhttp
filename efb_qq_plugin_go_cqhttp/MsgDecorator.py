@@ -263,7 +263,7 @@ class QQMsgProcessor:
         try:
             # In general, data['data'] is a JSON string
             dict_data = json.loads(efb_msg.text)
-            if type(dict_data) != dict or "app" not in dict_data:
+            if not isinstance(dict_data, dict) or "app" not in dict_data:
                 return [efb_msg]
 
             # Group of announcement

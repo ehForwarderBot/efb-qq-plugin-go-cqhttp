@@ -12,6 +12,6 @@ repos:
           - flake8-bugbear
 
   - repo: https://github.com/PyCQA/isort
-    rev: 5.12.0
+    rev: 5.13.0
     hooks:
       - id: isort

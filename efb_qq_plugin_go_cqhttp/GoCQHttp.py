@@ -123,7 +123,10 @@ class GoCQHttp(BaseClient):
             fmt_msgs: List[Dict] = []
             for msg in msg_elements:
                 from_user = await self.get_user_info(msg["sender"]["user_id"])
-                header_text = {"data": {"text": f'{from_user["remark"]}（{from_user["nickname"]}）：\n'}, "type": "text"}
+                header_text = {
+                    "data": {"text": f'{from_user["remark"]}（{from_user["nickname"]}）：\n'},
+                    "type": "text",
+                }
                 footer_text = {"data": {"text": "\n- - - - - - - - - - - - - - -\n"}, "type": "text"}
                 msg["content"].insert(0, header_text)
                 msg["content"].append(footer_text)
